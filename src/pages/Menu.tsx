@@ -1,10 +1,11 @@
-import { Plus, Search } from 'lucide-react';
+import { AlertTriangle, Plus, Search } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { CategoryTabs } from '../components/menu/CategoryTabs';
 import { ProductCard } from '../components/menu/ProductCard';
 import { ProductModal } from '../components/menu/ProductModal';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { Modal } from '../components/ui/Modal';
 import { useAuthStore } from '../store/authStore';
 import { useMenuStore } from '../store/menuStore';
 import type { Category, Product } from '../types';
@@ -29,7 +30,10 @@ export function Menu() {
   const [search, setSearch] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [actionMessage, setActionMessage] = useState('');
+  const [actionError, setActionError] = useState('');
 
   useEffect(() => {
     void loadMenuForRestaurant(authMode === 'supabase' ? restaurantId : null);
@@ -55,12 +59,22 @@ export function Menu() {
     setIsModalOpen(true);
   }
 
-  function handleSubmit(product: ProductForm) {
-    if (editingProduct) {
-      void updateProduct(editingProduct.id, product);
-      return;
+  async function handleSubmit(product: ProductForm) {
+    setActionError('');
+    setActionMessage('');
+
+    try {
+      if (editingProduct) {
+        await updateProduct(editingProduct.id, product);
+        setActionMessage('Ürün güncellendi.');
+        return;
+      }
+
+      await addProduct(product);
+      setActionMessage('Ürün eklendi.');
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Ürün kaydedilemedi.');
     }
-    void addProduct(product);
   }
 
   async function handleAddCategory(event: FormEvent<HTMLFormElement>) {
@@ -70,10 +84,43 @@ export function Menu() {
       return;
     }
 
+    setActionError('');
+    setActionMessage('');
+
     const didAddCategory = await addCategory(categoryName);
     if (didAddCategory) {
       setActiveCategory(categoryName);
       setNewCategoryName('');
+      setActionMessage('Kategori eklendi.');
+    }
+  }
+
+  async function handleToggleAvailability(productId: string) {
+    setActionError('');
+    setActionMessage('');
+
+    try {
+      await toggleProductAvailability(productId);
+      setActionMessage('Satış durumu güncellendi.');
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Satış durumu güncellenemedi.');
+    }
+  }
+
+  async function handleConfirmDelete() {
+    if (!deletingProduct) {
+      return;
+    }
+
+    setActionError('');
+    setActionMessage('');
+
+    try {
+      await deleteProduct(deletingProduct.id);
+      setDeletingProduct(null);
+      setActionMessage('Ürün silindi.');
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Ürün silinemedi.');
     }
   }
 
@@ -96,6 +143,16 @@ export function Menu() {
       {error ? (
         <div className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-orange-200">
           {error}
+        </div>
+      ) : null}
+      {actionMessage ? (
+        <div className="rounded-2xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-green-200">
+          {actionMessage}
+        </div>
+      ) : null}
+      {actionError ? (
+        <div className="rounded-2xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-red-200">
+          {actionError}
         </div>
       ) : null}
 
@@ -123,12 +180,17 @@ export function Menu() {
             <ProductCard
               key={product.id}
               product={product}
-              onDelete={deleteProduct}
+              onDelete={(id) => {
+                const selectedProduct = safeProducts.find((item) => item.id === id);
+                if (selectedProduct) {
+                  setDeletingProduct(selectedProduct);
+                }
+              }}
               onEdit={(selectedProduct) => {
                 setEditingProduct(selectedProduct);
                 setIsModalOpen(true);
               }}
-              onToggleAvailability={toggleProductAvailability}
+              onToggleAvailability={(id) => void handleToggleAvailability(id)}
             />
           ))}
         </section>
@@ -143,6 +205,28 @@ export function Menu() {
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleSubmit}
       />
+
+      <Modal isOpen={Boolean(deletingProduct)} title="Ürünü Sil" onClose={() => setDeletingProduct(null)}>
+        <div className="space-y-5">
+          <div className="flex gap-3 rounded-2xl border border-danger/30 bg-danger/10 p-4 text-red-100">
+            <AlertTriangle className="mt-0.5 shrink-0" size={20} />
+            <div>
+              <p className="font-semibold">{deletingProduct?.name} silinecek</p>
+              <p className="mt-1 text-sm leading-6 text-red-100/80">
+                Bu işlem menü listesinden ürünü kaldırır. Supabase modunda ürün veritabanından silinir.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap justify-end gap-3">
+            <Button type="button" variant="secondary" onClick={() => setDeletingProduct(null)}>
+              Vazgeç
+            </Button>
+            <Button type="button" variant="danger" onClick={handleConfirmDelete}>
+              Sil
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
