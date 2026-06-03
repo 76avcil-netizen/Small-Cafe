@@ -1,5 +1,5 @@
 import { Plus, Search } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { CategoryTabs } from '../components/menu/CategoryTabs';
 import { ProductCard } from '../components/menu/ProductCard';
 import { ProductModal } from '../components/menu/ProductModal';
@@ -18,6 +18,7 @@ export function Menu() {
   const error = useMenuStore((state) => state.error);
   const dataSource = useMenuStore((state) => state.dataSource);
   const loadMenuForRestaurant = useMenuStore((state) => state.loadMenuForRestaurant);
+  const addCategory = useMenuStore((state) => state.addCategory);
   const addProduct = useMenuStore((state) => state.addProduct);
   const updateProduct = useMenuStore((state) => state.updateProduct);
   const deleteProduct = useMenuStore((state) => state.deleteProduct);
@@ -26,6 +27,7 @@ export function Menu() {
   const restaurantId = useAuthStore((state) => state.profile?.restaurantId);
   const [activeCategory, setActiveCategory] = useState<Category>('Tümü');
   const [search, setSearch] = useState('');
+  const [newCategoryName, setNewCategoryName] = useState('');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -61,6 +63,20 @@ export function Menu() {
     void addProduct(product);
   }
 
+  async function handleAddCategory(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const categoryName = newCategoryName.trim();
+    if (!categoryName) {
+      return;
+    }
+
+    const didAddCategory = await addCategory(categoryName);
+    if (didAddCategory) {
+      setActiveCategory(categoryName);
+      setNewCategoryName('');
+    }
+  }
+
   return (
     <div className="space-y-6">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
@@ -89,6 +105,16 @@ export function Menu() {
           <Input className="pl-11" placeholder="Ürün ara" value={search} onChange={(event) => setSearch(event.target.value)} />
         </div>
         <CategoryTabs activeCategory={activeCategory} categories={categories} onChange={setActiveCategory} />
+        <form className="grid gap-3 border-t border-line pt-4 sm:grid-cols-[1fr_auto]" onSubmit={handleAddCategory}>
+          <Input
+            placeholder="Yeni kategori adı"
+            value={newCategoryName}
+            onChange={(event) => setNewCategoryName(event.target.value)}
+          />
+          <Button disabled={!newCategoryName.trim() || isLoading} icon={<Plus size={18} />} type="submit">
+            Kategori Ekle
+          </Button>
+        </form>
       </section>
 
       {filteredProducts.length > 0 ? (

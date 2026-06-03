@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { mockCategories } from '../data/mockCategories';
 import { mockProducts } from '../data/mockProducts';
 import { getSafeSupabaseErrorDetails, isSupabaseConfigured } from '../lib/supabaseClient';
-import { getActiveCategories } from '../services/categoriesService';
+import { createCategory, getActiveCategories } from '../services/categoriesService';
 import { createProduct, deleteProduct as deleteSupabaseProduct, getProductsWithCategories, updateProduct as updateSupabaseProduct } from '../services/productsService';
 import type { Product } from '../types';
 
@@ -21,6 +21,7 @@ interface MenuState {
   dataSource: MenuDataSource;
   activeRestaurantId: string | null;
   loadMenuForRestaurant: (restaurantId?: string | null) => Promise<void>;
+  addCategory: (name: string) => Promise<boolean>;
   addProduct: (product: ProductForm) => Promise<void>;
   updateProduct: (id: string, product: ProductForm) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
@@ -46,6 +47,41 @@ export const useMenuStore = create<MenuState>((set, get) => ({
     } finally {
       menuLoadPromise = null;
     }
+  },
+  addCategory: async (name) => {
+    const categoryName = name.trim();
+    if (!categoryName || categoryName === 'Tümü') {
+      return false;
+    }
+
+    const state = get();
+    if (state.categories.some((category) => category.toLocaleLowerCase('tr-TR') === categoryName.toLocaleLowerCase('tr-TR'))) {
+      set({ error: 'Bu kategori zaten var.' });
+      return false;
+    }
+
+    if (state.dataSource === 'supabase' && state.activeRestaurantId) {
+      try {
+        await createCategory({
+          restaurant_id: state.activeRestaurantId,
+          name: categoryName,
+          slug: slugify(categoryName),
+          sort_order: Math.max(0, state.categories.length - 1),
+          is_active: true,
+        });
+        await get().loadMenuForRestaurant(state.activeRestaurantId);
+        return true;
+      } catch (error) {
+        set({ error: error instanceof Error ? error.message : 'Kategori eklenemedi.' });
+        return false;
+      }
+    }
+
+    set((currentState) => ({
+      categories: [...currentState.categories, categoryName],
+      error: null,
+    }));
+    return true;
   },
   addProduct: async (product) => {
     const state = get();
@@ -193,4 +229,15 @@ function warnSupabaseFetchFailed(error: unknown) {
   console.warn('Supabase fetch failed', {
     error: getSafeSupabaseErrorDetails(error),
   });
+}
+
+function slugify(value: string) {
+  return value
+    .trim()
+    .toLocaleLowerCase('tr-TR')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ı/g, 'i')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
