@@ -85,8 +85,8 @@ export function buildDeliveryOrdersFromOrders(orders: Order[]): DeliveryOrder[] 
     .map((order) => ({
       id: order.id,
       customerName: order.customerName,
-      phone: 'Telefon eklenmedi',
-      address: 'Adres bilgisi sipariş formuna eklenecek',
+      phone: order.customerPhone || 'Telefon eklenmedi',
+      address: order.deliveryAddress || 'Adres bilgisi yok',
       totalAmount: getOrderTotal(order),
       status: mapOrderStatusToDeliveryStatus(order.status),
       note: order.note,
@@ -180,6 +180,10 @@ export function getBusyHours(orders: Order[]) {
 }
 
 function getTableIndex(order: Order, tableCount: number) {
+  if (order.tableNumber && order.tableNumber > 0) {
+    return Math.min(tableCount - 1, order.tableNumber - 1);
+  }
+
   const orderNumber = Number((order.orderNumber ?? '').replace('RY-', ''));
   if (!Number.isFinite(orderNumber)) {
     return 0;

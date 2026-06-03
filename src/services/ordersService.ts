@@ -15,6 +15,8 @@ export interface OrderPayload {
   order_number: string;
   customer_name?: string | null;
   customer_phone?: string | null;
+  delivery_address?: string | null;
+  table_number?: number | null;
   order_type: OrderType;
   status: OrderStatus;
   payment_status?: 'unpaid' | 'paid' | 'refunded';
@@ -89,6 +91,9 @@ function mapOrderRow(row: Record<string, any>): Order {
     id: String(row.id),
     orderNumber: String(row.order_number ?? 'RY-0000'),
     customerName: String(row.customer_name ?? 'İsimsiz müşteri'),
+    customerPhone: row.customer_phone ? String(row.customer_phone) : undefined,
+    deliveryAddress: row.delivery_address ? String(row.delivery_address) : undefined,
+    tableNumber: Number(row.table_number) || undefined,
     type: normalizeOrderType(row.order_type),
     status: normalizeOrderStatus(row.status),
     paymentStatus: normalizePaymentStatus(row.payment_status),

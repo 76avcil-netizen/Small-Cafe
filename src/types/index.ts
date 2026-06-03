@@ -38,6 +38,9 @@ export interface Order {
   id: string;
   orderNumber: string;
   customerName: string;
+  customerPhone?: string;
+  deliveryAddress?: string;
+  tableNumber?: number;
   type: OrderType;
   status: OrderStatus;
   paymentStatus: PaymentStatus;

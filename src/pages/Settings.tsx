@@ -1,8 +1,11 @@
-import { Building2, Clock, Palette, Save } from 'lucide-react';
+import { Building2, CheckCircle2, Clock, Database, Palette, Save, ServerCog, XCircle } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { isSupabaseConfigured, supabaseDiagnostics } from '../lib/supabaseClient';
 import { useAuthStore } from '../store/authStore';
+import { useMenuStore } from '../store/menuStore';
+import { useOrderStore } from '../store/orderStore';
 import { useSettingsStore, type AppCurrency, type AppSettings, type AppTheme } from '../store/settingsStore';
 
 const currencyOptions: Array<{ label: string; value: AppCurrency }> = [
@@ -24,7 +27,14 @@ export function Settings() {
   const isSaving = useSettingsStore((state) => state.isLoading);
   const settingsError = useSettingsStore((state) => state.error);
   const authMode = useAuthStore((state) => state.mode);
+  const profile = useAuthStore((state) => state.profile);
+  const authError = useAuthStore((state) => state.error);
   const restaurantId = useAuthStore((state) => state.profile?.restaurantId);
+  const menuDataSource = useMenuStore((state) => state.dataSource);
+  const menuError = useMenuStore((state) => state.error);
+  const orderDataSource = useOrderStore((state) => state.dataSource);
+  const orderError = useOrderStore((state) => state.error);
+  const hasSupabaseRestaurant = authMode === 'supabase' && Boolean(profile?.restaurantId);
   const [form, setForm] = useState<AppSettings>(settings);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -135,20 +145,74 @@ export function Settings() {
           </div>
         </form>
 
-        <aside className="h-fit rounded-2xl border border-line bg-card p-5 shadow-soft">
-          <h3 className="text-lg font-bold text-white">Aktif Ayarlar</h3>
-          <div className="mt-5 space-y-4 text-sm">
-            <SummaryRow label="Restoran" value={settings.restaurantName} />
-            <SummaryRow label="Telefon" value={settings.phone} />
-            <SummaryRow label="Adres" value={settings.address} />
-            <SummaryRow label="Para birimi" value={settings.currency} />
-            <SummaryRow label="Tema" value={themeOptions.find((option) => option.value === settings.theme)?.label ?? settings.theme} />
-            <SummaryRow label="Çalışma" value={`${settings.openingTime} - ${settings.closingTime}`} />
-            <SummaryRow label="Veri kaynağı" value={dataSource === 'supabase' ? 'Supabase' : 'Yerel'} />
-          </div>
-          <p className="mt-5 rounded-xl border border-line bg-app p-3 text-xs leading-5 text-muted">
-            Kaydedilen bilgiler üst bar, yan menü, tema renkleri ve tüm fiyat gösterimlerinde kullanılır.
-          </p>
+        <aside className="space-y-6">
+          <section className="h-fit rounded-2xl border border-line bg-card p-5 shadow-soft">
+            <h3 className="text-lg font-bold text-white">Aktif Ayarlar</h3>
+            <div className="mt-5 space-y-4 text-sm">
+              <SummaryRow label="Restoran" value={settings.restaurantName} />
+              <SummaryRow label="Telefon" value={settings.phone} />
+              <SummaryRow label="Adres" value={settings.address} />
+              <SummaryRow label="Para birimi" value={settings.currency} />
+              <SummaryRow label="Tema" value={themeOptions.find((option) => option.value === settings.theme)?.label ?? settings.theme} />
+              <SummaryRow label="Çalışma" value={`${settings.openingTime} - ${settings.closingTime}`} />
+              <SummaryRow label="Veri kaynağı" value={dataSource === 'supabase' ? 'Supabase' : 'Yerel'} />
+            </div>
+            <p className="mt-5 rounded-xl border border-line bg-app p-3 text-xs leading-5 text-muted">
+              Kaydedilen bilgiler üst bar, yan menü, tema renkleri ve tüm fiyat gösterimlerinde kullanılır.
+            </p>
+          </section>
+
+          <section className="h-fit rounded-2xl border border-line bg-card p-5 shadow-soft">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-primary/15 p-2 text-primary">
+                <ServerCog size={18} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Sistem Durumu</h3>
+                <p className="text-xs text-muted">Bağlantı ve veri kaynakları</p>
+              </div>
+            </div>
+            <div className="mt-5 space-y-3">
+              <StatusRow
+                icon={<Database size={16} />}
+                isOk={isSupabaseConfigured}
+                label="Supabase yapılandırması"
+                value={isSupabaseConfigured ? `${supabaseDiagnostics.keyType} key` : 'Eksik veya geçersiz'}
+              />
+              <StatusRow
+                isOk={authMode === 'supabase'}
+                label="Oturum modu"
+                value={authMode === 'supabase' ? 'Supabase' : 'Demo'}
+              />
+              <StatusRow
+                isOk={hasSupabaseRestaurant}
+                label="Restoran bağlantısı"
+                value={hasSupabaseRestaurant ? 'restaurant_id var' : authMode === 'demo' ? 'Demo restoran' : 'restaurant_id yok'}
+              />
+              <StatusRow
+                isOk={dataSource === 'supabase'}
+                label="Ayarlar kaynağı"
+                value={dataSource === 'supabase' ? 'Supabase' : 'Yerel'}
+              />
+              <StatusRow
+                isOk={menuDataSource === 'supabase'}
+                label="Menü kaynağı"
+                value={menuDataSource === 'supabase' ? 'Supabase' : 'Demo veri'}
+              />
+              <StatusRow
+                isOk={orderDataSource === 'supabase'}
+                label="Sipariş kaynağı"
+                value={orderDataSource === 'supabase' ? 'Supabase' : 'Demo veri'}
+              />
+            </div>
+            {authError || settingsError || menuError || orderError ? (
+              <div className="mt-5 space-y-2 rounded-xl border border-primary/30 bg-primary/10 p-3 text-xs leading-5 text-orange-100">
+                {[authError, settingsError, menuError, orderError].filter(Boolean).map((item) => (
+                  <p key={item}>{item}</p>
+                ))}
+              </div>
+            ) : null}
+          </section>
         </aside>
       </section>
     </div>
@@ -174,6 +238,32 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
     <div className="flex justify-between gap-4 border-b border-line pb-3 last:border-0 last:pb-0">
       <span className="text-muted">{label}</span>
       <strong className="max-w-44 text-right text-white">{value}</strong>
+    </div>
+  );
+}
+
+function StatusRow({
+  icon,
+  isOk,
+  label,
+  value,
+}: {
+  icon?: React.ReactNode;
+  isOk: boolean;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-line bg-app p-3">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className={isOk ? 'text-green-300' : 'text-orange-300'}>
+          {icon ?? (isOk ? <CheckCircle2 size={16} /> : <XCircle size={16} />)}
+        </div>
+        <span className="truncate text-sm text-stone-200">{label}</span>
+      </div>
+      <strong className={isOk ? 'shrink-0 text-xs text-green-300' : 'shrink-0 text-xs text-orange-300'}>
+        {value}
+      </strong>
     </div>
   );
 }

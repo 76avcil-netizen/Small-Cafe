@@ -10,6 +10,9 @@ import { Modal } from '../ui/Modal';
 
 interface NewOrderPayload {
   customerName: string;
+  customerPhone?: string;
+  deliveryAddress?: string;
+  tableNumber?: number;
   type: OrderType;
   items: OrderItem[];
   subtotal: number;
@@ -35,6 +38,9 @@ function NewOrderModalContent({ isOpen, onClose, onSubmit }: NewOrderModalProps)
   const products = useMenuStore((state) => state.products);
   const currency = useSettingsStore((state) => state.settings.currency);
   const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [tableNumber, setTableNumber] = useState(1);
   const [orderType, setOrderType] = useState<OrderType>('table');
   const [note, setNote] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -68,6 +74,9 @@ function NewOrderModalContent({ isOpen, onClose, onSubmit }: NewOrderModalProps)
 
   function resetForm() {
     setCustomerName('');
+    setCustomerPhone('');
+    setDeliveryAddress('');
+    setTableNumber(1);
     setOrderType('table');
     setNote('');
     setSearchTerm('');
@@ -151,9 +160,20 @@ function NewOrderModalContent({ isOpen, onClose, onSubmit }: NewOrderModalProps)
       setFormError('En az bir ürün seçin.');
       return;
     }
+    if (orderType === 'table' && (!tableNumber || tableNumber < 1)) {
+      setFormError('Masa numarası gerekli.');
+      return;
+    }
+    if (orderType === 'delivery' && !deliveryAddress.trim()) {
+      setFormError('Paket servis için adres gerekli.');
+      return;
+    }
 
     onSubmit({
       customerName: customerName.trim(),
+      customerPhone: customerPhone.trim() || undefined,
+      deliveryAddress: orderType === 'delivery' ? deliveryAddress.trim() : undefined,
+      tableNumber: orderType === 'table' ? tableNumber : undefined,
       type: orderType,
       items: cartItems,
       subtotal: total,
@@ -189,6 +209,31 @@ function NewOrderModalContent({ isOpen, onClose, onSubmit }: NewOrderModalProps)
             </select>
           </label>
         </div>
+
+        {orderType === 'table' ? (
+          <label className="block space-y-2">
+            <span className="text-sm font-semibold text-stone-200">Masa numarası</span>
+            <Input
+              min="1"
+              type="number"
+              value={tableNumber}
+              onChange={(event) => setTableNumber(Number(event.target.value))}
+            />
+          </label>
+        ) : null}
+
+        {orderType === 'delivery' ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block space-y-2">
+              <span className="text-sm font-semibold text-stone-200">Telefon</span>
+              <Input value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} />
+            </label>
+            <label className="block space-y-2">
+              <span className="text-sm font-semibold text-stone-200">Adres</span>
+              <Input value={deliveryAddress} onChange={(event) => setDeliveryAddress(event.target.value)} />
+            </label>
+          </div>
+        ) : null}
 
         <label className="block space-y-2">
           <span className="text-sm font-semibold text-stone-200">Sipariş notu</span>
