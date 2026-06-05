@@ -3,7 +3,7 @@ import type { Session, User } from '@supabase/supabase-js';
 import { getSafeSupabaseErrorDetails, isSupabaseConfigured, supabase } from '../lib/supabaseClient';
 import { getCurrentProfile } from '../services/profilesService';
 
-export type AppRole = 'owner' | 'admin' | 'cashier' | 'kitchen' | 'courier';
+export type AppRole = 'owner' | 'admin' | 'cashier' | 'kitchen' | 'courier' | 'operator';
 export type AuthMode = 'supabase' | 'demo';
 
 export interface AuthProfile {
@@ -66,6 +66,13 @@ const demoProfiles: Record<AppRole, AuthProfile> = {
     role: 'courier',
     restaurantId: 'demo-restaurant',
   },
+  operator: {
+    id: 'demo-operator',
+    email: 'operator@restoyonet.local',
+    fullName: 'Sistem Operatörü',
+    role: 'operator',
+    restaurantId: null,
+  },
 };
 
 export const roleLabels: Record<AppRole, string> = {
@@ -74,6 +81,7 @@ export const roleLabels: Record<AppRole, string> = {
   cashier: 'Kasiyer',
   kitchen: 'Mutfak',
   courier: 'Kurye',
+  operator: 'Operatör',
 };
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -244,5 +252,5 @@ function normalizeRole(role: unknown): AppRole {
 }
 
 function isRole(value: unknown): value is AppRole {
-  return value === 'owner' || value === 'admin' || value === 'cashier' || value === 'kitchen' || value === 'courier';
+  return value === 'owner' || value === 'admin' || value === 'cashier' || value === 'kitchen' || value === 'courier' || value === 'operator';
 }

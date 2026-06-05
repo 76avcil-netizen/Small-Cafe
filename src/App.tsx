@@ -7,6 +7,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Delivery } from './pages/Delivery';
 import { Menu } from './pages/Menu';
 import { Orders } from './pages/Orders';
+import { Operator } from './pages/Operator';
 import { Reports } from './pages/Reports';
 import { Settings } from './pages/Settings';
 import { Tables } from './pages/Tables';
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="/accounting" element={<ProtectedRoute allowedRoles={pagePermissions['/accounting']}><Accounting /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute allowedRoles={pagePermissions['/reports']}><Reports /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute allowedRoles={pagePermissions['/settings']}><Settings /></ProtectedRoute>} />
+          <Route path="/operator" element={<ProtectedRoute allowedRoles={pagePermissions['/operator']}><Operator /></ProtectedRoute>} />
         </Route>
       </Routes>
     </AuthGate>

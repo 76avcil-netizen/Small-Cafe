@@ -17,6 +17,7 @@ const pageTitles: Record<string, string> = {
   '/accounting': 'Muhasebe',
   '/reports': 'Raporlar',
   '/settings': 'Ayarlar',
+  '/operator': 'Operatör Paneli',
 };
 
 export function AppLayout() {
@@ -38,6 +39,10 @@ export function AppLayout() {
   }, [settings.theme]);
 
   useEffect(() => {
+    if (profile?.role === 'operator') {
+      return;
+    }
+
     void loadSettingsForRestaurant(authMode === 'supabase' ? profile?.restaurantId : null);
     void loadMenuForRestaurant(authMode === 'supabase' ? profile?.restaurantId : null);
     void loadOrdersForRestaurant(authMode === 'supabase' ? profile?.restaurantId : null);
@@ -48,6 +53,7 @@ export function AppLayout() {
     loadMenuForRestaurant,
     loadOrdersForRestaurant,
     loadSettingsForRestaurant,
+    profile?.role,
     profile?.restaurantId,
   ]);
 

@@ -4,6 +4,7 @@ import {
   Bike,
   Calculator,
   LayoutDashboard,
+  ShieldCheck,
   Menu as MenuIcon,
   ReceiptText,
   Settings,
@@ -27,6 +28,7 @@ const items = [
   { label: 'Muhasebe', path: '/accounting', icon: Calculator },
   { label: 'Raporlar', path: '/reports', icon: BarChart3 },
   { label: 'Ayarlar', path: '/settings', icon: Settings },
+  { label: 'Operatör', path: '/operator', icon: ShieldCheck },
 ];
 
 interface SidebarProps {

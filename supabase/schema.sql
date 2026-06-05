@@ -19,7 +19,7 @@ create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   restaurant_id uuid references restaurants(id) on delete set null,
   full_name text,
-  role text not null default 'owner' check (role in ('owner', 'admin', 'cashier', 'kitchen', 'courier')),
+  role text not null default 'owner' check (role in ('owner', 'admin', 'cashier', 'kitchen', 'courier', 'operator')),
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );

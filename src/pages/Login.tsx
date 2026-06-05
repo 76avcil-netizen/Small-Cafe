@@ -8,7 +8,7 @@ import { roleLabels, useAuthStore, type AppRole } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { canAccessPath, getDefaultPathForRole } from '../utils/permissions';
 
-const demoRoles: AppRole[] = ['owner', 'cashier', 'kitchen', 'courier'];
+const demoRoles: AppRole[] = ['owner', 'cashier', 'kitchen', 'courier', 'operator'];
 
 export function Login() {
   const location = useLocation();
@@ -30,7 +30,12 @@ export function Login() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void signIn(email, password);
+    const formData = new FormData(event.currentTarget);
+    const formEmail = String(formData.get('email') ?? email);
+    const formPassword = String(formData.get('password') ?? password);
+    setEmail(formEmail);
+    setPassword(formPassword);
+    void signIn(formEmail, formPassword);
   }
 
   return (
@@ -80,7 +85,9 @@ export function Login() {
               <div className="relative">
                 <UserRound className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" size={17} />
                 <Input
+                  autoComplete="email"
                   className="pl-11"
+                  name="email"
                   type="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
@@ -92,14 +99,16 @@ export function Login() {
               <div className="relative">
                 <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" size={17} />
                 <Input
+                  autoComplete="current-password"
                   className="pl-11"
+                  name="password"
                   type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                 />
               </div>
             </label>
-            <Button className="w-full" disabled={isLoading || !email || !password} type="submit">
+            <Button className="w-full" disabled={isLoading} type="submit">
               {isLoading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
             </Button>
           </form>

@@ -85,3 +85,35 @@ export interface Expense {
   note?: string;
   createdAt: string;
 }
+
+export type IntegrationStatus = 'connected' | 'pending' | 'error' | 'disabled';
+export type IntegrationEventStatus = 'success' | 'warning' | 'error';
+
+export interface OperatorIntegration {
+  id: string;
+  restaurantId: string;
+  name: string;
+  status: IntegrationStatus;
+  accountLabel?: string;
+  lastCheckedAt?: string;
+  lastError?: string;
+}
+
+export interface OperatorRestaurant {
+  id: string;
+  name: string;
+  ownerEmail: string;
+  city: string;
+  users: number;
+  integrations: OperatorIntegration[];
+}
+
+export interface OperatorIntegrationEvent {
+  id: string;
+  restaurantId?: string | null;
+  restaurantName: string;
+  provider: string;
+  title: string;
+  status: IntegrationEventStatus;
+  receivedAt: string;
+}

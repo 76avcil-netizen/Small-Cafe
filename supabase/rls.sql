@@ -54,6 +54,12 @@ on restaurants for select
 to authenticated
 using (id = public.current_profile_restaurant_id());
 
+drop policy if exists "Operators can read restaurants" on restaurants;
+create policy "Operators can read restaurants"
+on restaurants for select
+to authenticated
+using (public.current_profile_role() = 'operator');
+
 drop policy if exists "Users can update their restaurant" on restaurants;
 create policy "Users can update their restaurant"
 on restaurants for update
@@ -68,6 +74,12 @@ to authenticated
 using (id = (select auth.uid()));
 
 drop policy if exists "Owners and admins can read restaurant profiles" on profiles;
+
+drop policy if exists "Operators can read profiles" on profiles;
+create policy "Operators can read profiles"
+on profiles for select
+to authenticated
+using (public.current_profile_role() = 'operator');
 
 drop policy if exists "Users can update own profile" on profiles;
 create policy "Users can update own profile"

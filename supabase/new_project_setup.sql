@@ -21,7 +21,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   restaurant_id uuid references public.restaurants(id) on delete set null,
   full_name text,
-  role text not null default 'owner' check (role in ('owner', 'admin', 'cashier', 'kitchen', 'courier')),
+  role text not null default 'owner' check (role in ('owner', 'admin', 'cashier', 'kitchen', 'courier', 'operator')),
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -109,6 +109,47 @@ create table if not exists public.expenses (
   updated_at timestamptz default now()
 );
 
+create table if not exists public.integration_accounts (
+  id uuid primary key default gen_random_uuid(),
+  restaurant_id uuid not null references public.restaurants(id) on delete cascade,
+  provider text not null,
+  status text not null default 'pending' check (status in ('pending', 'connected', 'error', 'disabled')),
+  account_label text,
+  credential_reference text,
+  webhook_secret_reference text,
+  last_checked_at timestamptz,
+  last_error text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique (restaurant_id, provider)
+);
+
+create table if not exists public.integration_events (
+  id uuid primary key default gen_random_uuid(),
+  restaurant_id uuid references public.restaurants(id) on delete set null,
+  integration_account_id uuid references public.integration_accounts(id) on delete set null,
+  provider text not null,
+  event_type text not null,
+  status text not null default 'received' check (status in ('received', 'processed', 'failed', 'ignored')),
+  external_order_id text,
+  summary text,
+  payload jsonb,
+  error_message text,
+  received_at timestamptz default now(),
+  processed_at timestamptz
+);
+
+create table if not exists public.operator_audit_logs (
+  id uuid primary key default gen_random_uuid(),
+  operator_profile_id uuid references public.profiles(id) on delete set null,
+  restaurant_id uuid references public.restaurants(id) on delete set null,
+  action text not null,
+  target_type text,
+  target_id text,
+  details jsonb,
+  created_at timestamptz default now()
+);
+
 create or replace function public.update_updated_at_column()
 returns trigger
 language plpgsql
@@ -154,6 +195,11 @@ create trigger update_expenses_updated_at
 before update on public.expenses
 for each row execute function public.update_updated_at_column();
 
+drop trigger if exists update_integration_accounts_updated_at on public.integration_accounts;
+create trigger update_integration_accounts_updated_at
+before update on public.integration_accounts
+for each row execute function public.update_updated_at_column();
+
 create index if not exists profiles_restaurant_id_idx on public.profiles(restaurant_id);
 create index if not exists categories_restaurant_id_idx on public.categories(restaurant_id);
 create index if not exists products_restaurant_id_idx on public.products(restaurant_id);
@@ -165,6 +211,11 @@ create index if not exists order_items_order_id_idx on public.order_items(order_
 create index if not exists tables_restaurant_id_idx on public.tables(restaurant_id);
 create index if not exists expenses_restaurant_id_idx on public.expenses(restaurant_id);
 create index if not exists expenses_expense_date_idx on public.expenses(expense_date);
+create index if not exists integration_accounts_restaurant_id_idx on public.integration_accounts(restaurant_id);
+create index if not exists integration_events_restaurant_id_idx on public.integration_events(restaurant_id);
+create index if not exists integration_events_received_at_idx on public.integration_events(received_at);
+create index if not exists operator_audit_logs_operator_profile_id_idx on public.operator_audit_logs(operator_profile_id);
+create index if not exists operator_audit_logs_restaurant_id_idx on public.operator_audit_logs(restaurant_id);
 
 create or replace function app_private.current_profile_restaurant_id()
 returns uuid
@@ -208,6 +259,9 @@ grant select, insert, update, delete on public.orders to authenticated;
 grant select, insert, update, delete on public.order_items to authenticated;
 grant select, insert, update, delete on public.tables to authenticated;
 grant select, insert, update, delete on public.expenses to authenticated;
+grant select, insert, update, delete on public.integration_accounts to authenticated;
+grant select, insert, update, delete on public.integration_events to authenticated;
+grant select, insert on public.operator_audit_logs to authenticated;
 
 alter table public.restaurants enable row level security;
 alter table public.profiles enable row level security;
@@ -217,12 +271,21 @@ alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
 alter table public.tables enable row level security;
 alter table public.expenses enable row level security;
+alter table public.integration_accounts enable row level security;
+alter table public.integration_events enable row level security;
+alter table public.operator_audit_logs enable row level security;
 
 drop policy if exists "Users can read their restaurant" on public.restaurants;
 create policy "Users can read their restaurant"
 on public.restaurants for select
 to authenticated
 using (id = app_private.current_profile_restaurant_id());
+
+drop policy if exists "Operators can read restaurants" on public.restaurants;
+create policy "Operators can read restaurants"
+on public.restaurants for select
+to authenticated
+using (app_private.current_profile_role() = 'operator');
 
 drop policy if exists "Owners and admins can update their restaurant" on public.restaurants;
 create policy "Owners and admins can update their restaurant"
@@ -236,6 +299,12 @@ create policy "Users can read own profile"
 on public.profiles for select
 to authenticated
 using (id = (select auth.uid()));
+
+drop policy if exists "Operators can read profiles" on public.profiles;
+create policy "Operators can read profiles"
+on public.profiles for select
+to authenticated
+using (app_private.current_profile_role() = 'operator');
 
 drop policy if exists "Users can update own profile" on public.profiles;
 create policy "Users can update own profile"
@@ -440,6 +509,44 @@ create policy "Tenant delete expenses"
 on public.expenses for delete
 to authenticated
 using (restaurant_id = app_private.current_profile_restaurant_id());
+
+drop policy if exists "Operators can manage integration accounts" on public.integration_accounts;
+create policy "Operators can manage integration accounts"
+on public.integration_accounts for all
+to authenticated
+using (app_private.current_profile_role() = 'operator')
+with check (app_private.current_profile_role() = 'operator');
+
+drop policy if exists "Tenant select integration accounts" on public.integration_accounts;
+create policy "Tenant select integration accounts"
+on public.integration_accounts for select
+to authenticated
+using (restaurant_id = app_private.current_profile_restaurant_id());
+
+drop policy if exists "Operators can manage integration events" on public.integration_events;
+create policy "Operators can manage integration events"
+on public.integration_events for all
+to authenticated
+using (app_private.current_profile_role() = 'operator')
+with check (app_private.current_profile_role() = 'operator');
+
+drop policy if exists "Tenant select integration events" on public.integration_events;
+create policy "Tenant select integration events"
+on public.integration_events for select
+to authenticated
+using (restaurant_id = app_private.current_profile_restaurant_id());
+
+drop policy if exists "Operators can read audit logs" on public.operator_audit_logs;
+create policy "Operators can read audit logs"
+on public.operator_audit_logs for select
+to authenticated
+using (app_private.current_profile_role() = 'operator');
+
+drop policy if exists "Operators can insert audit logs" on public.operator_audit_logs;
+create policy "Operators can insert audit logs"
+on public.operator_audit_logs for insert
+to authenticated
+with check (app_private.current_profile_role() = 'operator');
 
 with demo_restaurant as (
   insert into public.restaurants (name, slug, phone, address, currency)

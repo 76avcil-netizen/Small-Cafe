@@ -9,6 +9,7 @@ export const pagePermissions: Record<string, AppRole[]> = {
   '/accounting': ['owner', 'admin'],
   '/reports': ['owner', 'admin'],
   '/settings': ['owner', 'admin'],
+  '/operator': ['operator'],
 };
 
 export function canAccessPath(role: AppRole, path: string) {
@@ -16,6 +17,10 @@ export function canAccessPath(role: AppRole, path: string) {
 }
 
 export function getDefaultPathForRole(role: AppRole) {
+  if (role === 'operator') {
+    return '/operator';
+  }
+
   if (role === 'courier') {
     return '/delivery';
   }

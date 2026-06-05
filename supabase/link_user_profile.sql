@@ -1,6 +1,7 @@
 -- Run this after creating a user in Supabase Auth.
 -- Change the email, full_name, role, and restaurant_slug values below before running.
--- Allowed roles: owner, admin, cashier, kitchen, courier
+-- Allowed roles: owner, admin, cashier, kitchen, courier, operator
+-- Operator users can keep profile_restaurant_slug null.
 
 do $$
 declare
@@ -11,8 +12,8 @@ declare
   target_user_id uuid;
   target_restaurant_id uuid;
 begin
-  if profile_role not in ('owner', 'admin', 'cashier', 'kitchen', 'courier') then
-    raise exception 'Invalid role: %. Allowed roles: owner, admin, cashier, kitchen, courier', profile_role;
+  if profile_role not in ('owner', 'admin', 'cashier', 'kitchen', 'courier', 'operator') then
+    raise exception 'Invalid role: %. Allowed roles: owner, admin, cashier, kitchen, courier, operator', profile_role;
   end if;
 
   select auth.users.id
@@ -25,14 +26,16 @@ begin
     raise exception 'Auth user not found for email: %. Create the user in Supabase Auth first.', profile_email;
   end if;
 
-  select public.restaurants.id
-  into target_restaurant_id
-  from public.restaurants
-  where public.restaurants.slug = profile_restaurant_slug
-  limit 1;
+  if profile_role <> 'operator' then
+    select public.restaurants.id
+    into target_restaurant_id
+    from public.restaurants
+    where public.restaurants.slug = profile_restaurant_slug
+    limit 1;
 
-  if target_restaurant_id is null then
-    raise exception 'Restaurant not found for slug: %. Run the setup/seed SQL first or change restaurant_slug.', profile_restaurant_slug;
+    if target_restaurant_id is null then
+      raise exception 'Restaurant not found for slug: %. Run the setup/seed SQL first or change restaurant_slug.', profile_restaurant_slug;
+    end if;
   end if;
 
   insert into public.profiles (id, restaurant_id, full_name, role)
