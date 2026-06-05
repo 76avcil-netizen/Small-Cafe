@@ -31,23 +31,35 @@ npm install @supabase/supabase-js
 
 ## 3. Veritabanı Kurulumu
 
-Supabase SQL Editor içinde sırayla çalıştırın:
+Yeni Supabase projesinde SQL Editor içinde tek seferde çalıştırın:
+
+1. `supabase/new_project_setup.sql`
+
+Bu dosya restoran bazlı tabloları, indeksleri, `updated_at` triggerlarını, RLS politikalarını ve demo menü verisini birlikte oluşturur.
+
+Supabase'in yeni proje ayarlarında tablolar Data API'ye otomatik açılmayabilir. `new_project_setup.sql` bu yüzden gerekli `GRANT` izinlerini açıkça verir; RLS politikaları satır erişimini yine kullanıcı profilindeki restoranla sınırlar.
+
+Var olan eski kurulumlarda gerekirse ayrı dosyalar hâlâ kullanılabilir:
 
 1. `supabase/schema.sql`
 2. `supabase/rls.sql`
 3. `supabase/seed.sql`
+4. `supabase/add_restaurant_settings_columns.sql`
+5. `supabase/add_order_location_columns.sql`
 
 Eğer Supabase istekleri `500` ve `42P17 infinite recursion detected in policy for relation "profiles"` hatası döndürürse, SQL Editor içinde `supabase/fix_rls_recursion.sql` dosyasını çalıştırın.
 
 Hata devam ederse, SQL Editor içinde `supabase/reset_menu_read_policies.sql` dosyasını çalıştırın. Bu dosya Menü ekranı için `products` ve `categories` public demo okuma politikalarını temiz şekilde yeniden kurar.
 
-`schema.sql` restoran bazlı çok kiracılı mimariyi, tabloları, indeksleri ve `updated_at` triggerlarını oluşturur.
+## 4. Auth Kullanıcısını Restorana Bağlama
 
-`rls.sql` kullanıcı profilindeki `restaurant_id` üzerinden tenant izolasyonu için başlangıç RLS politikalarını ekler.
+1. Supabase Dashboard > Authentication > Users içinde kullanıcıyı oluşturun.
+2. `supabase/link_user_profile.sql` dosyasında `CHANGE_ME@example.com`, isim, rol ve restoran slug değerlerini düzenleyin.
+3. Dosyayı SQL Editor içinde çalıştırın.
 
-`seed.sql` gerçek auth kullanıcısı gerektirmeden demo restoran, kategori ve ürün verisi oluşturur.
+Eski `supabase/link_admin_profile.sql` dosyası artık sadece geriye dönük yönlendirme notu içerir.
 
-## 4. Lokal Çalıştırma
+## 5. Lokal Çalıştırma
 
 ```bash
 npm install
@@ -63,29 +75,24 @@ Ctrl + C
 npm run dev
 ```
 
-## 5. Henüz Bağlı Olmayanlar
+## 6. Entegrasyon Durumu
 
-- Sipariş ekranı hâlâ mock data + Zustand kullanıyor.
-- Auth akışı henüz eklenmedi.
-- Profil oluşturma ve restoran seçimi henüz UI tarafına bağlanmadı.
+- Supabase env değerleri varsa gerçek Auth akışı kullanılır; yoksa demo giriş çalışır.
+- Menü, ayarlar ve sipariş akışları restoran profili üzerinden Supabase verisine bağlanır.
+- Demo giriş geliştirme ve fallback için korunur.
 - Realtime sipariş takibi henüz etkin değil.
 
-## 6. Sonraki Entegrasyon Sırası
+## 7. Sonraki Entegrasyon Sırası
 
-1. Supabase Auth ekleyin ve giriş yapan kullanıcının `profiles.restaurant_id` bilgisini okuyacak küçük bir session/profile store oluşturun.
-2. `restaurantsService` ve `profilesService` dosyalarını ayarlar/profil ekranına bağlayın.
-3. Menü ekranındaki ürün ekleme, düzenleme, silme ve stok durumu işlemlerini `productsService` üzerinden Supabase'e taşıyın.
-4. Sipariş ekranını `ordersService` ile Supabase'e bağlayın; mock siparişleri sadece demo fallback olarak bırakın.
-5. Masa, muhasebe ve rapor ekranlarını sırayla Supabase tablolarına bağlayın.
-6. Remote şema kesinleşince tipleri üretin:
+1. Masa, muhasebe ve rapor ekranlarını sırayla Supabase tablolarına bağlayın.
+2. Realtime sipariş takibini etkinleştirin.
+3. Remote şema kesinleşince tipleri üretin:
 
 ```bash
 npx supabase gen types typescript --project-id <project-id> --schema public > src/types/database.ts
 ```
 
-`src/services/ordersService.ts`, `src/services/profilesService.ts` ve `src/services/restaurantsService.ts` şu an bu sıradaki entegrasyonlar için hazır bekleyen servis dosyalarıdır.
-
-## 7. Proje Temizlik Notları
+## 8. Proje Temizlik Notları
 
 - `node_modules/` bağımlılık klasörüdür; repoya eklenmez, `npm install` ile yeniden oluşturulur.
 - `dist/` üretim build çıktısıdır; repoya eklenmez, `npm run build` ile yeniden oluşturulur.

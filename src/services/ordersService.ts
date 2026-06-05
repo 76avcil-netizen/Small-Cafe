@@ -50,7 +50,12 @@ export async function createOrder(payload: OrderPayload, items: OrderItemPayload
     const orderItems = items.map((item) => ({ ...item, order_id: order.id }));
     const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
     if (itemsError) {
-      throw new Error(`Sipariş kalemleri oluşturulamadı: ${getSafeSupabaseErrorDetails(itemsError)}`);
+      const { error: cleanupError } = await supabase.from('orders').delete().eq('id', order.id);
+      const cleanupMessage = cleanupError
+        ? ` Ana sipariş temizlenemedi: ${getSafeSupabaseErrorDetails(cleanupError)}`
+        : '';
+
+      throw new Error(`Sipariş kalemleri oluşturulamadı: ${getSafeSupabaseErrorDetails(itemsError)}.${cleanupMessage}`);
     }
   }
 

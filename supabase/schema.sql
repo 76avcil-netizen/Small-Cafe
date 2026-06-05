@@ -19,7 +19,7 @@ create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   restaurant_id uuid references restaurants(id) on delete set null,
   full_name text,
-  role text not null default 'owner',
+  role text not null default 'owner' check (role in ('owner', 'admin', 'cashier', 'kitchen', 'courier')),
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -55,6 +55,8 @@ create table if not exists orders (
   order_number text not null,
   customer_name text,
   customer_phone text,
+  delivery_address text,
+  table_number integer check (table_number is null or table_number > 0),
   order_type text not null check (order_type in ('table', 'delivery', 'takeaway')),
   status text not null check (status in ('new', 'preparing', 'ready', 'delivered', 'cancelled')),
   payment_status text not null default 'unpaid' check (payment_status in ('unpaid', 'paid', 'refunded')),

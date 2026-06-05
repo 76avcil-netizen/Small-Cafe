@@ -1,8 +1,8 @@
-import { Minus, Plus, Search, Trash2 } from 'lucide-react';
+import { Banknote, CreditCard, Globe2, Minus, Plus, Search, Trash2, WalletCards } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 import { useMenuStore } from '../../store/menuStore';
 import { useSettingsStore } from '../../store/settingsStore';
-import type { OrderItem, OrderType } from '../../types';
+import type { OrderItem, OrderType, PaymentMethod, PaymentStatus } from '../../types';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -17,6 +17,8 @@ interface NewOrderPayload {
   items: OrderItem[];
   subtotal: number;
   total: number;
+  paymentStatus?: PaymentStatus;
+  paymentMethod?: PaymentMethod | null;
   note?: string;
 }
 
@@ -42,6 +44,8 @@ function NewOrderModalContent({ isOpen, onClose, onSubmit }: NewOrderModalProps)
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [tableNumber, setTableNumber] = useState(1);
   const [orderType, setOrderType] = useState<OrderType>('table');
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('unpaid');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [note, setNote] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [cartItems, setCartItems] = useState<OrderItem[]>([]);
@@ -78,6 +82,8 @@ function NewOrderModalContent({ isOpen, onClose, onSubmit }: NewOrderModalProps)
     setDeliveryAddress('');
     setTableNumber(1);
     setOrderType('table');
+    setPaymentStatus('unpaid');
+    setPaymentMethod(null);
     setNote('');
     setSearchTerm('');
     setCartItems([]);
@@ -152,7 +158,9 @@ function NewOrderModalContent({ isOpen, onClose, onSubmit }: NewOrderModalProps)
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!customerName.trim()) {
+    const normalizedCustomerName = customerName.trim();
+
+    if (orderType !== 'table' && !normalizedCustomerName) {
       setFormError('Müşteri adı gerekli.');
       return;
     }
@@ -170,7 +178,7 @@ function NewOrderModalContent({ isOpen, onClose, onSubmit }: NewOrderModalProps)
     }
 
     onSubmit({
-      customerName: customerName.trim(),
+      customerName: normalizedCustomerName || `Masa ${tableNumber}`,
       customerPhone: customerPhone.trim() || undefined,
       deliveryAddress: orderType === 'delivery' ? deliveryAddress.trim() : undefined,
       tableNumber: orderType === 'table' ? tableNumber : undefined,
@@ -178,6 +186,8 @@ function NewOrderModalContent({ isOpen, onClose, onSubmit }: NewOrderModalProps)
       items: cartItems,
       subtotal: total,
       total,
+      paymentStatus,
+      paymentMethod: paymentStatus === 'paid' ? paymentMethod : null,
       note: note.trim() || undefined,
     });
     resetForm();
@@ -193,7 +203,9 @@ function NewOrderModalContent({ isOpen, onClose, onSubmit }: NewOrderModalProps)
 
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block space-y-2">
-            <span className="text-sm font-semibold text-stone-200">Müşteri adı</span>
+            <span className="text-sm font-semibold text-stone-200">
+              Müşteri adı{orderType === 'table' ? ' (opsiyonel)' : ''}
+            </span>
             <Input value={customerName} onChange={(event) => setCustomerName(event.target.value)} />
           </label>
           <label className="block space-y-2">
@@ -239,6 +251,55 @@ function NewOrderModalContent({ isOpen, onClose, onSubmit }: NewOrderModalProps)
           <span className="text-sm font-semibold text-stone-200">Sipariş notu</span>
           <Input value={note} onChange={(event) => setNote(event.target.value)} />
         </label>
+
+        <div className="space-y-3 rounded-2xl border border-line bg-app p-4">
+          <div>
+            <p className="text-sm font-semibold text-stone-200">Ödeme durumu</p>
+            <p className="mt-1 text-xs leading-5 text-muted">Bu bilgi sipariş kartında ve paket servis ekranında görünür.</p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <PaymentOptionButton
+              active={paymentStatus === 'unpaid'}
+              icon={<WalletCards size={17} />}
+              label="Tahsilat sonra"
+              helper="Sipariş ödenmedi"
+              onClick={() => {
+                setPaymentStatus('unpaid');
+                setPaymentMethod(null);
+              }}
+            />
+            <PaymentOptionButton
+              active={paymentStatus === 'paid' && paymentMethod === 'cash'}
+              icon={<Banknote size={17} />}
+              label="Nakit ödendi"
+              helper="Kasada veya teslimatta"
+              onClick={() => {
+                setPaymentStatus('paid');
+                setPaymentMethod('cash');
+              }}
+            />
+            <PaymentOptionButton
+              active={paymentStatus === 'paid' && paymentMethod === 'card'}
+              icon={<CreditCard size={17} />}
+              label="Kart ödendi"
+              helper="POS ile tahsil edildi"
+              onClick={() => {
+                setPaymentStatus('paid');
+                setPaymentMethod('card');
+              }}
+            />
+            <PaymentOptionButton
+              active={paymentStatus === 'paid' && paymentMethod === 'online'}
+              icon={<Globe2 size={17} />}
+              label="Online ödendi"
+              helper="Kurye tahsilat almaz"
+              onClick={() => {
+                setPaymentStatus('paid');
+                setPaymentMethod('online');
+              }}
+            />
+          </div>
+        </div>
 
         <div className="space-y-3">
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
@@ -354,5 +415,36 @@ function NewOrderModalContent({ isOpen, onClose, onSubmit }: NewOrderModalProps)
         </div>
       </form>
     </Modal>
+  );
+}
+
+function PaymentOptionButton({
+  active,
+  icon,
+  label,
+  helper,
+  onClick,
+}: {
+  active: boolean;
+  icon: React.ReactNode;
+  label: string;
+  helper: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      aria-pressed={active}
+      className={`flex min-h-20 items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
+        active ? 'border-primary bg-primary/20 text-white' : 'border-line bg-card text-stone-200 hover:border-primary/70'
+      }`}
+      type="button"
+      onClick={onClick}
+    >
+      <span className={`rounded-lg p-2 ${active ? 'bg-primary text-white' : 'bg-app text-primary'}`}>{icon}</span>
+      <span className="min-w-0">
+        <span className="block text-sm font-bold">{label}</span>
+        <span className="mt-1 block text-xs leading-4 text-muted">{helper}</span>
+      </span>
+    </button>
   );
 }

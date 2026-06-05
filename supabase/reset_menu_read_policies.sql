@@ -19,7 +19,8 @@ end $$;
 
 create policy "Users can read own profile"
 on public.profiles for select
-using (id = auth.uid());
+to authenticated
+using (id = (select auth.uid()));
 
 create policy "Public demo select active categories"
 on public.categories for select

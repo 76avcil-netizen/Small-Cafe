@@ -16,7 +16,7 @@ stable
 as $$
   select restaurant_id
   from public.profiles
-  where id = auth.uid()
+  where id = (select auth.uid())
 $$;
 
 create or replace function public.current_profile_role()
@@ -28,35 +28,53 @@ stable
 as $$
   select role
   from public.profiles
-  where id = auth.uid()
+  where id = (select auth.uid())
 $$;
 
-grant execute on function public.current_profile_restaurant_id() to anon, authenticated;
-grant execute on function public.current_profile_role() to anon, authenticated;
+revoke all on function public.current_profile_restaurant_id() from public;
+revoke all on function public.current_profile_role() from public;
+grant execute on function public.current_profile_restaurant_id() to authenticated;
+grant execute on function public.current_profile_role() to authenticated;
+
+grant usage on schema public to anon, authenticated;
+grant select on restaurants to authenticated;
+grant select, update on profiles to authenticated;
+grant select on categories to anon;
+grant select on products to anon;
+grant select, insert, update, delete on categories to authenticated;
+grant select, insert, update, delete on products to authenticated;
+grant select, insert, update, delete on orders to authenticated;
+grant select, insert, update, delete on order_items to authenticated;
+grant select, insert, update, delete on tables to authenticated;
+grant select, insert, update, delete on expenses to authenticated;
 
 drop policy if exists "Users can read their restaurant" on restaurants;
 create policy "Users can read their restaurant"
 on restaurants for select
+to authenticated
 using (id = public.current_profile_restaurant_id());
 
 drop policy if exists "Users can update their restaurant" on restaurants;
 create policy "Users can update their restaurant"
 on restaurants for update
+to authenticated
 using (id = public.current_profile_restaurant_id() and public.current_profile_role() in ('owner', 'admin'))
 with check (id = public.current_profile_restaurant_id() and public.current_profile_role() in ('owner', 'admin'));
 
 drop policy if exists "Users can read own profile" on profiles;
 create policy "Users can read own profile"
 on profiles for select
-using (id = auth.uid());
+to authenticated
+using (id = (select auth.uid()));
 
 drop policy if exists "Owners and admins can read restaurant profiles" on profiles;
 
 drop policy if exists "Users can update own profile" on profiles;
 create policy "Users can update own profile"
 on profiles for update
-using (id = auth.uid())
-with check (id = auth.uid());
+to authenticated
+using (id = (select auth.uid()))
+with check (id = (select auth.uid()));
 
 drop policy if exists "Tenant select categories" on categories;
 create policy "Tenant select categories"
@@ -123,27 +141,32 @@ using (restaurant_id = public.current_profile_restaurant_id());
 drop policy if exists "Tenant select orders" on orders;
 create policy "Tenant select orders"
 on orders for select
+to authenticated
 using (restaurant_id = public.current_profile_restaurant_id());
 
 drop policy if exists "Tenant insert orders" on orders;
 create policy "Tenant insert orders"
 on orders for insert
+to authenticated
 with check (restaurant_id = public.current_profile_restaurant_id());
 
 drop policy if exists "Tenant update orders" on orders;
 create policy "Tenant update orders"
 on orders for update
+to authenticated
 using (restaurant_id = public.current_profile_restaurant_id())
 with check (restaurant_id = public.current_profile_restaurant_id());
 
 drop policy if exists "Tenant delete orders" on orders;
 create policy "Tenant delete orders"
 on orders for delete
+to authenticated
 using (restaurant_id = public.current_profile_restaurant_id());
 
 drop policy if exists "Tenant select order items" on order_items;
 create policy "Tenant select order items"
 on order_items for select
+to authenticated
 using (
   exists (
     select 1
@@ -156,6 +179,7 @@ using (
 drop policy if exists "Tenant insert order items" on order_items;
 create policy "Tenant insert order items"
 on order_items for insert
+to authenticated
 with check (
   exists (
     select 1
@@ -168,6 +192,7 @@ with check (
 drop policy if exists "Tenant update order items" on order_items;
 create policy "Tenant update order items"
 on order_items for update
+to authenticated
 using (
   exists (
     select 1
@@ -188,6 +213,7 @@ with check (
 drop policy if exists "Tenant delete order items" on order_items;
 create policy "Tenant delete order items"
 on order_items for delete
+to authenticated
 using (
   exists (
     select 1
@@ -200,41 +226,49 @@ using (
 drop policy if exists "Tenant select tables" on tables;
 create policy "Tenant select tables"
 on tables for select
+to authenticated
 using (restaurant_id = public.current_profile_restaurant_id());
 
 drop policy if exists "Tenant insert tables" on tables;
 create policy "Tenant insert tables"
 on tables for insert
+to authenticated
 with check (restaurant_id = public.current_profile_restaurant_id());
 
 drop policy if exists "Tenant update tables" on tables;
 create policy "Tenant update tables"
 on tables for update
+to authenticated
 using (restaurant_id = public.current_profile_restaurant_id())
 with check (restaurant_id = public.current_profile_restaurant_id());
 
 drop policy if exists "Tenant delete tables" on tables;
 create policy "Tenant delete tables"
 on tables for delete
+to authenticated
 using (restaurant_id = public.current_profile_restaurant_id());
 
 drop policy if exists "Tenant select expenses" on expenses;
 create policy "Tenant select expenses"
 on expenses for select
+to authenticated
 using (restaurant_id = public.current_profile_restaurant_id());
 
 drop policy if exists "Tenant insert expenses" on expenses;
 create policy "Tenant insert expenses"
 on expenses for insert
+to authenticated
 with check (restaurant_id = public.current_profile_restaurant_id());
 
 drop policy if exists "Tenant update expenses" on expenses;
 create policy "Tenant update expenses"
 on expenses for update
+to authenticated
 using (restaurant_id = public.current_profile_restaurant_id())
 with check (restaurant_id = public.current_profile_restaurant_id());
 
 drop policy if exists "Tenant delete expenses" on expenses;
 create policy "Tenant delete expenses"
 on expenses for delete
+to authenticated
 using (restaurant_id = public.current_profile_restaurant_id());

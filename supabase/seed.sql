@@ -52,10 +52,32 @@ join (values
   ('Köfte Ekmek', 'Izgara köfte ve taze garnitür', 300.00, 'Köfteler', true),
   ('Ayran', 'Soğuk kutu ayran', 50.00, 'İçecekler', true)
 ) as product_seed(name, description, price, category_name, is_available)
-  on all_categories.name = product_seed.category_name
+on all_categories.name = product_seed.category_name
 where not exists (
   select 1
   from products existing_product
   where existing_product.restaurant_id = all_categories.restaurant_id
     and existing_product.name = product_seed.name
+);
+
+with demo_restaurant as (
+  select id
+  from restaurants
+  where slug = 'lezzet-bufe'
+  limit 1
+)
+insert into expenses (restaurant_id, title, amount, category, expense_date)
+select demo_restaurant.id, expense_seed.title, expense_seed.amount, expense_seed.category, current_date
+from demo_restaurant
+join (values
+  ('Sebze ve garnitür', 280.00, 'Malzeme'),
+  ('Paket malzemesi', 170.00, 'Paketleme'),
+  ('Kurye yakıt desteği', 230.00, 'Operasyon')
+) as expense_seed(title, amount, category) on true
+where not exists (
+  select 1
+  from expenses existing_expense
+  where existing_expense.restaurant_id = demo_restaurant.id
+    and existing_expense.title = expense_seed.title
+    and existing_expense.expense_date = current_date
 );

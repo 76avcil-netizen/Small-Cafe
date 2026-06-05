@@ -1,11 +1,5 @@
 import type { DeliveryOrder, Order, Product, Table } from '../types';
 
-export const DAILY_EXPENSES = [
-  { name: 'Sebze ve garnitür', amount: 280 },
-  { name: 'Paket malzemesi', amount: 170 },
-  { name: 'Kurye yakıt desteği', amount: 230 },
-];
-
 export function getSafeOrders(orders: Order[]) {
   return Array.isArray(orders) ? orders.filter(Boolean) : [];
 }
@@ -89,6 +83,8 @@ export function buildDeliveryOrdersFromOrders(orders: Order[]): DeliveryOrder[] 
       address: order.deliveryAddress || 'Adres bilgisi yok',
       totalAmount: getOrderTotal(order),
       status: mapOrderStatusToDeliveryStatus(order.status),
+      paymentStatus: order.paymentStatus,
+      paymentMethod: order.paymentMethod,
       note: order.note,
     }));
 }

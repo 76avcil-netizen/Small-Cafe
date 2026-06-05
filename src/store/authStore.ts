@@ -91,18 +91,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     set({ isLoading: true, error: null });
 
-    const storedDemoAuth = getStoredDemoAuth();
-    if (storedDemoAuth.profile) {
-      set({
-        ...storedDemoAuth,
-        isInitialized: true,
-        isLoading: false,
-        mode: 'demo',
-      });
-      return;
-    }
-
     if (!isSupabaseConfigured || !supabase) {
+      const storedDemoAuth = getStoredDemoAuth();
       set({
         ...storedDemoAuth,
         isInitialized: true,
@@ -121,6 +111,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (data.session?.user) {
         const profile = await loadProfile(data.session.user);
         set({ session: data.session, user: data.session.user, profile, mode: 'supabase' });
+      } else {
+        set({ session: null, user: null, profile: null, mode: 'supabase' });
       }
 
       supabase.auth.onAuthStateChange((_event, session) => {
@@ -137,6 +129,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       set({ isInitialized: true, isLoading: false });
     } catch (error) {
+      const storedDemoAuth = getStoredDemoAuth();
       set({
         ...storedDemoAuth,
         error: `Supabase oturumu alınamadı, demo giriş kullanılabilir: ${getSafeSupabaseErrorDetails(error)}`,
@@ -147,7 +140,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
   signIn: async (email, password) => {
-    set({ isLoading: true, error: null });
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail || !password) {
+      set({ error: 'Email ve şifre zorunludur.', isLoading: false, session: null, user: null, profile: null });
+      return;
+    }
+
+    window.localStorage.removeItem(demoSessionKey);
+    set({ isLoading: true, error: null, session: null, user: null, profile: null, mode: isSupabaseConfigured ? 'supabase' : 'demo' });
 
     if (!isSupabaseConfigured || !supabase) {
       setDemoAuth('owner', set);
@@ -155,7 +155,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      await supabase.auth.signOut();
+
+      const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
       if (error) {
         throw error;
       }
@@ -167,6 +169,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({
         error: `Giriş yapılamadı: ${getSafeSupabaseErrorDetails(error)}`,
         isLoading: false,
+        session: null,
+        user: null,
+        profile: null,
+        mode: 'supabase',
       });
     }
   },

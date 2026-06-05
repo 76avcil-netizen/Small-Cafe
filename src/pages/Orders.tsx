@@ -7,7 +7,7 @@ import { useOrderStore } from '../store/orderStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getOrderStatusLabel, orderStatusFilters } from '../utils/orderHelpers';
-import type { Order, OrderStatus } from '../types';
+import type { Order, OrderStatus, PaymentMethod, PaymentStatus } from '../types';
 
 export function Orders() {
   const orders = useOrderStore((state) => state.orders);
@@ -58,7 +58,12 @@ export function Orders() {
     [activeFilter, safeOrders],
   );
   const handleAddOrder = useCallback(
-    (order: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'status' | 'paymentStatus' | 'paymentMethod'>) => {
+    (
+      order: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'status' | 'paymentStatus' | 'paymentMethod'> & {
+        paymentStatus?: PaymentStatus;
+        paymentMethod?: PaymentMethod | null;
+      },
+    ) => {
       void addOrder(order);
     },
     [addOrder],

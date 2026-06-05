@@ -20,6 +20,7 @@ export function Login() {
   const authError = useAuthStore((state) => state.error);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [selectedDemoRole, setSelectedDemoRole] = useState<AppRole>('owner');
   const state = location.state as { from?: unknown } | null;
   const from = typeof state?.from === 'string' ? state.from : '/dashboard';
 
@@ -110,13 +111,24 @@ export function Login() {
                 {isSupabaseConfigured ? 'Opsiyonel' : 'Supabase kapalı'}
               </span>
             </div>
+            <p className="mb-3 text-xs leading-5 text-muted">
+              Rol seçimi yalnızca demo giriş için geçerlidir. Email ve şifreyle girişte Supabase profilinizdeki rol kullanılır.
+            </p>
             <div className="grid gap-2 sm:grid-cols-2">
               {demoRoles.map((role) => (
-                <Button key={role} type="button" variant="secondary" onClick={() => signInDemo(role)}>
+                <Button
+                  key={role}
+                  type="button"
+                  variant={selectedDemoRole === role ? 'primary' : 'secondary'}
+                  onClick={() => setSelectedDemoRole(role)}
+                >
                   {roleLabels[role]}
                 </Button>
               ))}
             </div>
+            <Button className="mt-3 w-full" type="button" onClick={() => signInDemo(selectedDemoRole)}>
+              {roleLabels[selectedDemoRole]} olarak demo giriş
+            </Button>
           </div>
         </div>
       </main>

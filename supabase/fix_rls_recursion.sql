@@ -7,7 +7,7 @@ stable
 as $$
   select restaurant_id
   from public.profiles
-  where id = auth.uid()
+  where id = (select auth.uid())
 $$;
 
 create or replace function public.current_profile_role()
@@ -19,11 +19,13 @@ stable
 as $$
   select role
   from public.profiles
-  where id = auth.uid()
+  where id = (select auth.uid())
 $$;
 
-grant execute on function public.current_profile_restaurant_id() to anon, authenticated;
-grant execute on function public.current_profile_role() to anon, authenticated;
+revoke all on function public.current_profile_restaurant_id() from public;
+revoke all on function public.current_profile_role() from public;
+grant execute on function public.current_profile_restaurant_id() to authenticated;
+grant execute on function public.current_profile_role() to authenticated;
 
 do $$
 declare
@@ -41,12 +43,14 @@ end $$;
 
 create policy "Users can read own profile"
 on public.profiles for select
-using (id = auth.uid());
+to authenticated
+using (id = (select auth.uid()));
 
 create policy "Users can update own profile"
 on public.profiles for update
-using (id = auth.uid())
-with check (id = auth.uid());
+to authenticated
+using (id = (select auth.uid()))
+with check (id = (select auth.uid()));
 
 drop policy if exists "Tenant select categories" on public.categories;
 create policy "Tenant select categories"

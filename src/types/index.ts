@@ -61,6 +61,8 @@ export interface DeliveryOrder {
   address: string;
   totalAmount: number;
   status: DeliveryStatus;
+  paymentStatus: PaymentStatus;
+  paymentMethod?: PaymentMethod | null;
   note?: string;
 }
 
@@ -72,4 +74,14 @@ export interface Table {
   status: TableStatus;
   totalAmount?: number;
   currentOrderCount?: number;
+}
+
+export interface Expense {
+  id: string;
+  name: string;
+  amount: number;
+  category?: string;
+  expenseDate: string;
+  note?: string;
+  createdAt: string;
 }
