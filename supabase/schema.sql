@@ -74,10 +74,12 @@ create table if not exists order_items (
   id uuid primary key default gen_random_uuid(),
   order_id uuid not null references orders(id) on delete cascade,
   product_id uuid references products(id) on delete set null,
+  consumable_item_id uuid,
   product_name text not null,
   quantity integer not null check (quantity > 0),
   unit_price numeric(10,2) not null check (unit_price >= 0),
   total_price numeric(10,2) not null check (total_price >= 0),
+  is_complimentary boolean not null default false,
   note text,
   created_at timestamptz default now()
 );
@@ -104,6 +106,28 @@ create table if not exists expenses (
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+create table if not exists consumable_items (
+  id uuid primary key default gen_random_uuid(),
+  restaurant_id uuid not null references restaurants(id) on delete cascade,
+  name text not null,
+  category text,
+  quantity numeric(10,2) not null default 0 check (quantity >= 0),
+  unit text not null default 'adet',
+  unit_cost numeric(10,2) check (unit_cost is null or unit_cost >= 0),
+  purchase_date date not null default current_date,
+  expiry_date date,
+  storage_location text,
+  usage_type text not null default 'sarf' check (usage_type in ('ikram', 'sarf', 'mutfak', 'paketleme')),
+  note text,
+  is_active boolean not null default true,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table order_items
+  add column if not exists consumable_item_id uuid,
+  add column if not exists is_complimentary boolean not null default false;
 
 create or replace function update_updated_at_column()
 returns trigger as $$
@@ -148,6 +172,11 @@ create trigger update_expenses_updated_at
 before update on expenses
 for each row execute function update_updated_at_column();
 
+drop trigger if exists update_consumable_items_updated_at on consumable_items;
+create trigger update_consumable_items_updated_at
+before update on consumable_items
+for each row execute function update_updated_at_column();
+
 create index if not exists profiles_restaurant_id_idx on profiles(restaurant_id);
 create index if not exists categories_restaurant_id_idx on categories(restaurant_id);
 create index if not exists products_restaurant_id_idx on products(restaurant_id);
@@ -156,6 +185,14 @@ create index if not exists orders_restaurant_id_idx on orders(restaurant_id);
 create index if not exists orders_status_idx on orders(status);
 create index if not exists orders_created_at_idx on orders(created_at);
 create index if not exists order_items_order_id_idx on order_items(order_id);
+create index if not exists order_items_consumable_item_id_idx on order_items(consumable_item_id);
 create index if not exists tables_restaurant_id_idx on tables(restaurant_id);
 create index if not exists expenses_restaurant_id_idx on expenses(restaurant_id);
 create index if not exists expenses_expense_date_idx on expenses(expense_date);
+create index if not exists consumable_items_restaurant_id_idx on consumable_items(restaurant_id);
+create index if not exists consumable_items_expiry_date_idx on consumable_items(expiry_date);
+
+alter table order_items
+  drop constraint if exists order_items_consumable_item_id_fkey,
+  add constraint order_items_consumable_item_id_fkey
+  foreign key (consumable_item_id) references consumable_items(id) on delete set null;

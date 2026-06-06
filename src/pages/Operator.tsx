@@ -1,12 +1,25 @@
-import { Activity, Building2, Cable, CheckCircle2, Clock3, KeyRound, UserRoundCog, Webhook } from 'lucide-react';
+import {
+  Activity,
+  AlertTriangle,
+  Building2,
+  Cable,
+  CheckCircle2,
+  Clock3,
+  FileClock,
+  KeyRound,
+  ShieldCheck,
+  UserRoundCog,
+  Webhook,
+} from 'lucide-react';
 import { useEffect } from 'react';
 import { Badge } from '../components/ui/Badge';
 import { useOperatorStore } from '../store/operatorStore';
-import type { IntegrationEventStatus, IntegrationStatus } from '../types';
+import type { IntegrationEventStatus, IntegrationStatus, OperatorAuditLog } from '../types';
 
 export function Operator() {
   const restaurants = useOperatorStore((state) => state.restaurants);
   const events = useOperatorStore((state) => state.events);
+  const auditLogs = useOperatorStore((state) => state.auditLogs);
   const isLoading = useOperatorStore((state) => state.isLoading);
   const error = useOperatorStore((state) => state.error);
   const dataSource = useOperatorStore((state) => state.dataSource);
@@ -24,6 +37,37 @@ export function Operator() {
     0,
   );
   const userCount = restaurants.reduce((sum, restaurant) => sum + restaurant.users, 0);
+  const highRiskAuditCount = auditLogs.filter((log) => log.severity === 'high').length;
+  const suspiciousEvents = events.filter((event) => event.status === 'error').length;
+  const riskSignals = [
+    {
+      id: 'operator-access',
+      title: 'Yetki denemeleri',
+      value: `${highRiskAuditCount}`,
+      text: highRiskAuditCount > 0
+        ? 'Operatör yetkisi veya hassas işlem denemeleri kontrol bekliyor.'
+        : 'Kritik yetki denemesi görünmüyor.',
+      tone: highRiskAuditCount > 0 ? 'danger' : 'success',
+    },
+    {
+      id: 'integration-errors',
+      title: 'Entegrasyon sapması',
+      value: `${suspiciousEvents + errorCount}`,
+      text: suspiciousEvents + errorCount > 0
+        ? 'Webhook veya API hesabı tarafında doğrulama hatası var.'
+        : 'Webhook ve entegrasyon akışı sakin.',
+      tone: suspiciousEvents + errorCount > 0 ? 'warning' : 'success',
+    },
+    {
+      id: 'pending-onboarding',
+      title: 'Bekleyen bağlantı',
+      value: `${pendingCount}`,
+      text: pendingCount > 0
+        ? 'Bekleyen hesaplar tamamlanana kadar sipariş akışı manuel kontrol edilmeli.'
+        : 'Bekleyen kanal bağlantısı yok.',
+      tone: pendingCount > 0 ? 'warning' : 'success',
+    },
+  ] as const;
 
   useEffect(() => {
     void loadOperatorDashboard();
@@ -49,11 +93,12 @@ export function Operator() {
         <p className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-red-200">{error}</p>
       ) : null}
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <OperatorStat title="Restoran" value={`${restaurants.length}`} icon={Building2} helper="Aktif tenant" />
         <OperatorStat title="Kullanıcı" value={`${userCount}`} icon={UserRoundCog} helper="Bağlı profil" />
         <OperatorStat title="Bağlı API" value={`${connectedCount}`} icon={Cable} helper={`${pendingCount} bekleyen`} />
         <OperatorStat title="Uyarı" value={`${errorCount}`} icon={Activity} helper="Kontrol gereken" danger={errorCount > 0} />
+        <OperatorStat title="Yüksek Risk" value={`${highRiskAuditCount}`} icon={ShieldCheck} helper="İşlem izi alarmı" danger={highRiskAuditCount > 0} />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.35fr_0.9fr]">
@@ -120,10 +165,58 @@ export function Operator() {
         </article>
       </section>
 
+      <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <article className="rounded-2xl border border-line bg-card p-5 shadow-soft">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-bold text-white">Risk Sinyalleri</h3>
+              <p className="mt-1 text-sm text-muted">İnsan hatası ve sistemi yanıltma denemeleri için hızlı kontrol</p>
+            </div>
+            <span className="rounded-2xl bg-primary/15 p-3 text-primary">
+              <AlertTriangle size={20} />
+            </span>
+          </div>
+          <div className="mt-5 space-y-3">
+            {riskSignals.map((signal) => (
+              <div key={signal.id} className="rounded-2xl border border-line bg-app p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-white">{signal.title}</p>
+                    <p className="mt-1 text-sm leading-5 text-muted">{signal.text}</p>
+                  </div>
+                  <Badge tone={signal.tone}>{signal.value}</Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="rounded-2xl border border-line bg-card p-5 shadow-soft">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-bold text-white">Operatör İşlem İzi</h3>
+              <p className="mt-1 text-sm text-muted">Restoran, profil ve entegrasyon değişikliklerinin kaydı</p>
+            </div>
+            <Badge tone={highRiskAuditCount > 0 ? 'danger' : 'success'}>
+              {highRiskAuditCount > 0 ? 'İnceleme gerekli' : 'Temiz'}
+            </Badge>
+          </div>
+          <div className="mt-5 space-y-3">
+            {auditLogs.length > 0 ? auditLogs.map((log) => (
+              <AuditLogItem key={log.id} log={log} />
+            )) : (
+              <p className="rounded-2xl border border-line bg-app p-4 text-center text-sm text-muted">
+                Henüz operatör işlem izi yok.
+              </p>
+            )}
+          </div>
+        </article>
+      </section>
+
       <section className="grid gap-4 md:grid-cols-3">
         <NextStep icon={KeyRound} title="Kimlik bilgileri" text="API anahtarları frontend'e gelmeden Supabase/Edge Function tarafında saklanacak." />
         <NextStep icon={Webhook} title="Webhook uçları" text="Platformlardan gelen bildirimler restoran bazlı olay kaydına düşecek." />
-        <NextStep icon={Clock3} title="Operatör izi" text="Restoran, kullanıcı ve entegrasyon değişiklikleri audit log olarak tutulacak." />
+        <NextStep icon={FileClock} title="Değişiklik kilidi" text="Rol, credential ve restoran değişikliklerinde audit log zorunlu tutulacak." />
       </section>
     </div>
   );
@@ -170,6 +263,28 @@ function NextStep({ icon: Icon, title, text }: { icon: typeof KeyRound; title: s
   );
 }
 
+function AuditLogItem({ log }: { log: OperatorAuditLog }) {
+  return (
+    <div className="rounded-2xl border border-line bg-app p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-bold text-white">{log.restaurantName}</p>
+            <Badge tone={getAuditSeverityTone(log.severity)}>{getAuditSeverityLabel(log.severity)}</Badge>
+          </div>
+          <p className="mt-2 text-sm leading-5 text-stone-200">{log.summary}</p>
+        </div>
+        <span className="text-xs font-semibold text-muted">{log.createdAt}</span>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted">
+        <span>{log.operatorName}</span>
+        <span>{log.action}</span>
+        <span>{log.targetType}{log.targetId ? ` · ${log.targetId}` : ''}</span>
+      </div>
+    </div>
+  );
+}
+
 function getIntegrationClassName(status: IntegrationStatus) {
   if (status === 'connected') {
     return 'border-success/30 bg-success/10 text-green-200';
@@ -208,4 +323,28 @@ function getEventClassName(status: IntegrationEventStatus) {
   }
 
   return 'border-primary/30 bg-primary/10 text-orange-200';
+}
+
+function getAuditSeverityTone(severity: OperatorAuditLog['severity']) {
+  if (severity === 'high') {
+    return 'danger';
+  }
+
+  if (severity === 'medium') {
+    return 'warning';
+  }
+
+  return 'success';
+}
+
+function getAuditSeverityLabel(severity: OperatorAuditLog['severity']) {
+  if (severity === 'high') {
+    return 'Yüksek';
+  }
+
+  if (severity === 'medium') {
+    return 'Orta';
+  }
+
+  return 'Düşük';
 }

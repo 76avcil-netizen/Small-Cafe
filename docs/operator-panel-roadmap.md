@@ -1,6 +1,6 @@
 # Operator Panel Roadmap
 
-Son guncelleme: 2026-06-05 23:42 +03
+Son guncelleme: 2026-06-06 00:00 +03
 
 ## Tamamlananlar
 
@@ -16,6 +16,8 @@ Son guncelleme: 2026-06-05 23:42 +03
 - Supabase tarafinda operator rol checkleri, entegrasyon tablolari ve RLS politikalari hazirlandi.
 - Login ekranina Operator demo girisi eklendi.
 - Otomatik doldurulan email/sifre alanlari icin form submit davranisi duzeltildi.
+- Operator panelinde risk sinyalleri ve operator audit log gorunumu eklendi.
+- Supabase `operator_audit_logs` verisi panelden okunur hale getirildi; demo fallback verisi hazirlandi.
 
 ## Siradaki Asamalar
 
@@ -42,6 +44,7 @@ Son guncelleme: 2026-06-05 23:42 +03
 5. Operator audit log
    - Restoran, kullanici ve entegrasyon degisikliklerini kaydetme.
    - Kim, ne zaman, hangi kaydi degistirdi bilgisini saklama.
+   - Panelde risk seviyesi ve son islem izi olarak gosterme. (tamamlandi)
 
 ## Guvenlik Notlari
 

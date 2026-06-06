@@ -24,6 +24,10 @@ export interface Database {
       order_items: LooseTable;
       tables: LooseTable;
       expenses: LooseTable;
+      consumable_items: LooseTable;
+      integration_accounts: LooseTable;
+      integration_events: LooseTable;
+      operator_audit_logs: LooseTable;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

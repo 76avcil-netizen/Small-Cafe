@@ -1,5 +1,12 @@
 import { getSafeSupabaseErrorDetails, getSupabaseClient } from '../lib/supabaseClient';
-import type { IntegrationStatus, OperatorIntegration, OperatorIntegrationEvent, OperatorRestaurant } from '../types';
+import type {
+  IntegrationStatus,
+  OperatorAuditLog,
+  OperatorAuditSeverity,
+  OperatorIntegration,
+  OperatorIntegrationEvent,
+  OperatorRestaurant,
+} from '../types';
 
 interface RestaurantRow {
   id: string;
@@ -34,6 +41,20 @@ export async function getOperatorIntegrationEvents(): Promise<OperatorIntegratio
   }
 
   return (data ?? []).map(mapIntegrationEventRow);
+}
+
+export async function getOperatorAuditLogs(): Promise<OperatorAuditLog[]> {
+  const { data, error } = await getSupabaseClient()
+    .from('operator_audit_logs')
+    .select('*, restaurants(name), profiles(full_name)')
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (error) {
+    throw new Error(`Operatör işlem izleri alınamadı: ${getSafeSupabaseErrorDetails(error)}`);
+  }
+
+  return (data ?? []).map(mapAuditLogRow);
 }
 
 function mapRestaurantRow(row: RestaurantRow): OperatorRestaurant {
@@ -75,6 +96,22 @@ function mapIntegrationEventRow(row: Record<string, any>): OperatorIntegrationEv
   };
 }
 
+function mapAuditLogRow(row: Record<string, any>): OperatorAuditLog {
+  const details = isPlainObject(row.details) ? row.details : {};
+
+  return {
+    id: String(row.id),
+    operatorName: String(row.profiles?.full_name ?? details.operatorName ?? 'Operatör'),
+    restaurantName: String(row.restaurants?.name ?? details.restaurantName ?? 'Restoran yok'),
+    action: String(row.action ?? 'operator.action'),
+    targetType: String(row.target_type ?? 'record'),
+    targetId: row.target_id ? String(row.target_id) : undefined,
+    summary: String(details.summary ?? buildAuditSummary(row.action, row.target_type)),
+    severity: normalizeAuditSeverity(details.severity, row.action),
+    createdAt: formatRelativeTime(row.created_at),
+  };
+}
+
 function normalizeIntegrationStatus(value: unknown): IntegrationStatus {
   if (value === 'connected' || value === 'pending' || value === 'error' || value === 'disabled') {
     return value;
@@ -93,6 +130,34 @@ function normalizeEventStatus(value: unknown) {
   }
 
   return 'warning';
+}
+
+function normalizeAuditSeverity(value: unknown, action: unknown): OperatorAuditSeverity {
+  if (value === 'low' || value === 'medium' || value === 'high') {
+    return value;
+  }
+
+  const actionText = typeof action === 'string' ? action.toLowerCase() : '';
+  if (actionText.includes('delete') || actionText.includes('suspicious') || actionText.includes('secret')) {
+    return 'high';
+  }
+
+  if (actionText.includes('role') || actionText.includes('credential') || actionText.includes('integration')) {
+    return 'medium';
+  }
+
+  return 'low';
+}
+
+function buildAuditSummary(action: unknown, targetType: unknown) {
+  const actionText = typeof action === 'string' ? action : 'İşlem';
+  const targetText = typeof targetType === 'string' ? targetType : 'kayıt';
+
+  return `${targetText} üzerinde ${actionText} işlemi kaydedildi.`;
+}
+
+function isPlainObject(value: unknown): value is Record<string, any> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
 function inferCity(address?: string | null) {

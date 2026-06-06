@@ -1,5 +1,6 @@
-import { Banknote, CreditCard, Globe2, Minus, Plus, Search, Trash2, WalletCards } from 'lucide-react';
+import { Banknote, Coffee, CreditCard, Gift, Globe2, Minus, Plus, Search, Trash2, WalletCards } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
+import { useConsumableStore } from '../../store/consumableStore';
 import { useMenuStore } from '../../store/menuStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import type { OrderItem, OrderType, PaymentMethod, PaymentStatus } from '../../types';
@@ -38,6 +39,7 @@ export function NewOrderModal(props: NewOrderModalProps) {
 
 function NewOrderModalContent({ isOpen, onClose, onSubmit }: NewOrderModalProps) {
   const products = useMenuStore((state) => state.products);
+  const consumables = useConsumableStore((state) => state.consumables);
   const currency = useSettingsStore((state) => state.settings.currency);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -56,6 +58,10 @@ function NewOrderModalContent({ isOpen, onClose, onSubmit }: NewOrderModalProps)
   const availableProducts = useMemo(
     () => safeProducts.filter((product) => product && product.isAvailable !== false),
     [safeProducts],
+  );
+  const availableComplimentaryItems = useMemo(
+    () => consumables.filter((item) => item.usageType === 'ikram' && item.quantity > 0),
+    [consumables],
   );
 
   const filteredProducts = useMemo(() => {
@@ -126,13 +132,60 @@ function NewOrderModalContent({ isOpen, onClose, onSubmit }: NewOrderModalProps)
     });
   }
 
+  function addComplimentaryToCart(consumableItemId: string) {
+    const consumable = availableComplimentaryItems.find((item) => item.id === consumableItemId);
+    if (!consumable) {
+      return;
+    }
+
+    setFormError('');
+    setCartItems((currentItems) => {
+      const existingItem = currentItems.find((item) => item.consumableItemId === consumable.id && item.isComplimentary);
+      if (existingItem) {
+        if (existingItem.quantity >= consumable.quantity) {
+          return currentItems;
+        }
+
+        return currentItems.map((item) =>
+          item.consumableItemId === consumable.id && item.isComplimentary
+            ? { ...item, quantity: item.quantity + 1, totalPrice: 0 }
+            : item,
+        );
+      }
+
+      return [
+        ...currentItems,
+        {
+          productId: `ikram-${consumable.id}`,
+          productName: `${consumable.name} (İkram)`,
+          quantity: 1,
+          unitPrice: 0,
+          totalPrice: 0,
+          isComplimentary: true,
+          consumableItemId: consumable.id,
+        },
+      ];
+    });
+  }
+
   function increaseQuantity(productId: string) {
     setCartItems((currentItems) =>
-      currentItems.map((item) =>
-        item.productId === productId
-          ? { ...item, quantity: item.quantity + 1, totalPrice: (item.quantity + 1) * item.unitPrice }
-          : item,
-      ),
+      currentItems.map((item) => {
+        if (item.productId !== productId) {
+          return item;
+        }
+
+        if (item.isComplimentary && item.consumableItemId) {
+          const consumable = availableComplimentaryItems.find((currentItem) => currentItem.id === item.consumableItemId);
+          if (consumable && item.quantity >= consumable.quantity) {
+            return item;
+          }
+
+          return { ...item, quantity: item.quantity + 1, totalPrice: 0 };
+        }
+
+        return { ...item, quantity: item.quantity + 1, totalPrice: (item.quantity + 1) * item.unitPrice };
+      }),
     );
   }
 
@@ -154,6 +207,10 @@ function NewOrderModalContent({ isOpen, onClose, onSubmit }: NewOrderModalProps)
 
   function getCartQuantity(productId: string) {
     return cartItems.find((item) => item.productId === productId)?.quantity ?? 0;
+  }
+
+  function getComplimentaryQuantity(consumableItemId: string) {
+    return cartItems.find((item) => item.consumableItemId === consumableItemId && item.isComplimentary)?.quantity ?? 0;
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -355,6 +412,50 @@ function NewOrderModalContent({ isOpen, onClose, onSubmit }: NewOrderModalProps)
         </div>
 
         <div className="space-y-3 rounded-2xl border border-line bg-app p-4">
+          <div className="flex items-start gap-3">
+            <span className="rounded-xl bg-primary/15 p-2 text-primary">
+              <Gift size={18} />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-stone-200">İkram ekle</p>
+              <p className="mt-1 text-xs leading-5 text-muted">Siparişte görünür, tutara eklenmez ve sarf stoktan düşer.</p>
+            </div>
+          </div>
+
+          <div className="grid max-h-48 gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
+            {availableComplimentaryItems.length > 0 ? availableComplimentaryItems.map((item) => {
+              const selectedQuantity = getComplimentaryQuantity(item.id);
+
+              return (
+                <button
+                  key={item.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-line bg-card px-4 py-3 text-left transition hover:border-primary/60"
+                  type="button"
+                  onClick={() => addComplimentaryToCart(item.id)}
+                >
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-2 text-sm font-semibold text-white">
+                      <Coffee size={15} />
+                      {item.name}
+                    </span>
+                    <span className="mt-1 block text-xs text-muted">
+                      Stok: {item.quantity} {item.unit} · Ücretsiz
+                    </span>
+                  </span>
+                  <span className="rounded-full bg-primary/15 px-2.5 py-1 text-xs font-bold text-primary">
+                    {selectedQuantity}
+                  </span>
+                </button>
+              );
+            }) : (
+              <div className="rounded-2xl border border-line bg-card p-5 text-center text-sm text-muted sm:col-span-2">
+                Stokta ikram için işaretlenmiş sarf malzemesi yok.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-3 rounded-2xl border border-line bg-app p-4">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-semibold text-stone-200">Sepet</p>
             <span className="text-xs text-muted">{cartItems.length} ürün</span>
@@ -365,7 +466,9 @@ function NewOrderModalContent({ isOpen, onClose, onSubmit }: NewOrderModalProps)
                 <div key={item.productId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-card p-3">
                   <div>
                     <p className="font-semibold text-white">{item.productName}</p>
-                    <p className="text-sm text-muted">{item.quantity} x {formatCurrency(item.unitPrice, currency)}</p>
+                    <p className="text-sm text-muted">
+                      {item.quantity} x {item.isComplimentary ? 'İkram · faturaya yansımaz' : formatCurrency(item.unitPrice, currency)}
+                    </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button

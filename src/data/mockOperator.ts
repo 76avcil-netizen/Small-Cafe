@@ -1,4 +1,4 @@
-import type { OperatorIntegrationEvent, OperatorRestaurant } from '../types';
+import type { OperatorAuditLog, OperatorIntegrationEvent, OperatorRestaurant } from '../types';
 
 export const mockOperatorRestaurants: OperatorRestaurant[] = [
   {
@@ -64,5 +64,39 @@ export const mockOperatorEvents: OperatorIntegrationEvent[] = [
     title: 'Webhook test bildirimi beklemede',
     status: 'warning',
     receivedAt: '42 dk önce',
+  },
+];
+
+export const mockOperatorAuditLogs: OperatorAuditLog[] = [
+  {
+    id: 'audit-1',
+    operatorName: 'Sistem Operatörü',
+    restaurantName: 'Lezzet Büfe',
+    action: 'integration.secret_rotated',
+    targetType: 'integration_account',
+    targetId: 'getir-lezzet',
+    summary: 'Getir webhook secret referansı yenilendi.',
+    severity: 'medium',
+    createdAt: '11 dk önce',
+  },
+  {
+    id: 'audit-2',
+    operatorName: 'Sistem Operatörü',
+    restaurantName: 'Sahil Döner',
+    action: 'profile.role_changed',
+    targetType: 'profile',
+    summary: 'Personel rolü kurye olarak güncellendi.',
+    severity: 'low',
+    createdAt: '34 dk önce',
+  },
+  {
+    id: 'audit-3',
+    operatorName: 'Koruma Kontrolü',
+    restaurantName: 'Lezzet Büfe',
+    action: 'access.suspicious_attempt',
+    targetType: 'operator_route',
+    summary: 'Restoran kullanıcısından operatör ekranına yetkisiz erişim denemesi yakalandı.',
+    severity: 'high',
+    createdAt: '1 sa önce',
   },
 ];

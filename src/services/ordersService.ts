@@ -3,10 +3,12 @@ import type { Order, OrderStatus, OrderType, PaymentMethod, PaymentStatus } from
 
 export interface OrderItemPayload {
   product_id?: string | null;
+  consumable_item_id?: string | null;
   product_name: string;
   quantity: number;
   unit_price: number;
   total_price: number;
+  is_complimentary?: boolean;
   note?: string | null;
 }
 
@@ -105,10 +107,12 @@ function mapOrderRow(row: Record<string, any>): Order {
     paymentMethod: normalizePaymentMethod(row.payment_method),
     items: items.map((item: Record<string, any>) => ({
       productId: String(item.product_id ?? ''),
+      consumableItemId: item.consumable_item_id ? String(item.consumable_item_id) : undefined,
       productName: String(item.product_name ?? 'Ürün'),
       quantity: Number(item.quantity) || 0,
       unitPrice: Number(item.unit_price) || 0,
       totalPrice: Number(item.total_price) || 0,
+      isComplimentary: Boolean(item.is_complimentary),
     })),
     subtotal: Number(row.subtotal) || 0,
     total: Number(row.total) || 0,

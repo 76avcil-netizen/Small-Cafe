@@ -32,6 +32,8 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
+  isComplimentary?: boolean;
+  consumableItemId?: string;
 }
 
 export interface Order {
@@ -86,6 +88,23 @@ export interface Expense {
   createdAt: string;
 }
 
+export type ConsumableUsageType = 'ikram' | 'sarf' | 'mutfak' | 'paketleme';
+
+export interface ConsumableItem {
+  id: string;
+  name: string;
+  category?: string;
+  quantity: number;
+  unit: string;
+  unitCost?: number;
+  purchaseDate: string;
+  expiryDate?: string;
+  storageLocation?: string;
+  usageType: ConsumableUsageType;
+  note?: string;
+  createdAt: string;
+}
+
 export type IntegrationStatus = 'connected' | 'pending' | 'error' | 'disabled';
 export type IntegrationEventStatus = 'success' | 'warning' | 'error';
 
@@ -116,4 +135,18 @@ export interface OperatorIntegrationEvent {
   title: string;
   status: IntegrationEventStatus;
   receivedAt: string;
+}
+
+export type OperatorAuditSeverity = 'low' | 'medium' | 'high';
+
+export interface OperatorAuditLog {
+  id: string;
+  operatorName: string;
+  restaurantName: string;
+  action: string;
+  targetType: string;
+  targetId?: string;
+  summary: string;
+  severity: OperatorAuditSeverity;
+  createdAt: string;
 }

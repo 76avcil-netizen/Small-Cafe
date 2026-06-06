@@ -6,6 +6,7 @@ alter table orders enable row level security;
 alter table order_items enable row level security;
 alter table tables enable row level security;
 alter table expenses enable row level security;
+alter table consumable_items enable row level security;
 
 create or replace function public.current_profile_restaurant_id()
 returns uuid
@@ -47,6 +48,7 @@ grant select, insert, update, delete on orders to authenticated;
 grant select, insert, update, delete on order_items to authenticated;
 grant select, insert, update, delete on tables to authenticated;
 grant select, insert, update, delete on expenses to authenticated;
+grant select, insert, update, delete on consumable_items to authenticated;
 
 drop policy if exists "Users can read their restaurant" on restaurants;
 create policy "Users can read their restaurant"
@@ -282,5 +284,30 @@ with check (restaurant_id = public.current_profile_restaurant_id());
 drop policy if exists "Tenant delete expenses" on expenses;
 create policy "Tenant delete expenses"
 on expenses for delete
+to authenticated
+using (restaurant_id = public.current_profile_restaurant_id());
+
+drop policy if exists "Tenant select consumable items" on consumable_items;
+create policy "Tenant select consumable items"
+on consumable_items for select
+to authenticated
+using (restaurant_id = public.current_profile_restaurant_id());
+
+drop policy if exists "Tenant insert consumable items" on consumable_items;
+create policy "Tenant insert consumable items"
+on consumable_items for insert
+to authenticated
+with check (restaurant_id = public.current_profile_restaurant_id());
+
+drop policy if exists "Tenant update consumable items" on consumable_items;
+create policy "Tenant update consumable items"
+on consumable_items for update
+to authenticated
+using (restaurant_id = public.current_profile_restaurant_id())
+with check (restaurant_id = public.current_profile_restaurant_id());
+
+drop policy if exists "Tenant delete consumable items" on consumable_items;
+create policy "Tenant delete consumable items"
+on consumable_items for delete
 to authenticated
 using (restaurant_id = public.current_profile_restaurant_id());

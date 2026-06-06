@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import { useConsumableStore } from '../../store/consumableStore';
 import { useExpenseStore } from '../../store/expenseStore';
 import { useMenuStore } from '../../store/menuStore';
 import { useOrderStore } from '../../store/orderStore';
@@ -30,6 +31,7 @@ export function AppLayout() {
   const loadMenuForRestaurant = useMenuStore((state) => state.loadMenuForRestaurant);
   const loadOrdersForRestaurant = useOrderStore((state) => state.loadOrdersForRestaurant);
   const loadExpensesForRestaurant = useExpenseStore((state) => state.loadExpensesForRestaurant);
+  const loadConsumablesForRestaurant = useConsumableStore((state) => state.loadConsumablesForRestaurant);
   const location = useLocation();
   const navigate = useNavigate();
   const title = useMemo(() => pageTitles[location.pathname] ?? 'Ana Panel', [location.pathname]);
@@ -47,8 +49,10 @@ export function AppLayout() {
     void loadMenuForRestaurant(authMode === 'supabase' ? profile?.restaurantId : null);
     void loadOrdersForRestaurant(authMode === 'supabase' ? profile?.restaurantId : null);
     void loadExpensesForRestaurant(authMode === 'supabase' ? profile?.restaurantId : null);
+    void loadConsumablesForRestaurant(authMode === 'supabase' ? profile?.restaurantId : null);
   }, [
     authMode,
+    loadConsumablesForRestaurant,
     loadExpensesForRestaurant,
     loadMenuForRestaurant,
     loadOrdersForRestaurant,

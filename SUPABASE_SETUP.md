@@ -78,13 +78,24 @@ npm run dev
 ## 6. Entegrasyon Durumu
 
 - Supabase env değerleri varsa gerçek Auth akışı kullanılır; yoksa demo giriş çalışır.
-- Menü, ayarlar ve sipariş akışları restoran profili üzerinden Supabase verisine bağlanır.
+- Menü, ayarlar, sipariş, muhasebe giderleri, sarf/ikram stokları ve operatör paneli restoran profili üzerinden Supabase verisine bağlanır.
 - Demo giriş geliştirme ve fallback için korunur.
 - Realtime sipariş takibi henüz etkin değil.
 
-## 7. Sonraki Entegrasyon Sırası
+## 7. Uzak Deploy Notları
 
-1. Masa, muhasebe ve rapor ekranlarını sırayla Supabase tablolarına bağlayın.
+Uzak makinede veya statik hosting sağlayıcısında şu ortam değişkenleri build öncesi tanımlanmalıdır:
+
+```bash
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_or_publishable_key
+```
+
+Supabase Auth ayarlarında production domaini `Site URL` ve `Redirect URLs` listesine ekleyin. React Router kullandığımız için sunucu tarafında `/orders`, `/accounting`, `/operator` gibi yolların `index.html` dosyasına düşmesi gerekir. Ayrıntılar için `DEPLOYMENT.md` dosyasına bakın.
+
+## 8. Sonraki Entegrasyon Sırası
+
+1. Masa ve rapor ekranlarını sırayla Supabase tablolarına bağlayın.
 2. Realtime sipariş takibini etkinleştirin.
 3. Remote şema kesinleşince tipleri üretin:
 
@@ -92,7 +103,7 @@ npm run dev
 npx supabase gen types typescript --project-id <project-id> --schema public > src/types/database.ts
 ```
 
-## 8. Proje Temizlik Notları
+## 9. Proje Temizlik Notları
 
 - `node_modules/` bağımlılık klasörüdür; repoya eklenmez, `npm install` ile yeniden oluşturulur.
 - `dist/` üretim build çıktısıdır; repoya eklenmez, `npm run build` ile yeniden oluşturulur.

@@ -120,13 +120,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const profile = await loadProfile(data.session.user);
         set({ session: data.session, user: data.session.user, profile, mode: 'supabase' });
       } else {
-        set({ session: null, user: null, profile: null, mode: 'supabase' });
+        const storedDemoAuth = getStoredDemoAuth();
+        set({
+          ...storedDemoAuth,
+          mode: storedDemoAuth.profile ? 'demo' : 'supabase',
+        });
       }
 
       supabase.auth.onAuthStateChange((_event, session) => {
         setTimeout(async () => {
           if (!session?.user) {
-            set({ session: null, user: null, profile: null, mode: 'supabase' });
+            const storedDemoAuth = getStoredDemoAuth();
+            set({
+              ...storedDemoAuth,
+              mode: storedDemoAuth.profile ? 'demo' : 'supabase',
+            });
             return;
           }
 

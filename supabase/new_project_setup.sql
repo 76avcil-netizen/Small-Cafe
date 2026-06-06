@@ -78,10 +78,12 @@ create table if not exists public.order_items (
   id uuid primary key default gen_random_uuid(),
   order_id uuid not null references public.orders(id) on delete cascade,
   product_id uuid references public.products(id) on delete set null,
+  consumable_item_id uuid,
   product_name text not null,
   quantity integer not null check (quantity > 0),
   unit_price numeric(10,2) not null check (unit_price >= 0),
   total_price numeric(10,2) not null check (total_price >= 0),
+  is_complimentary boolean not null default false,
   note text,
   created_at timestamptz default now()
 );
@@ -108,6 +110,28 @@ create table if not exists public.expenses (
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+create table if not exists public.consumable_items (
+  id uuid primary key default gen_random_uuid(),
+  restaurant_id uuid not null references public.restaurants(id) on delete cascade,
+  name text not null,
+  category text,
+  quantity numeric(10,2) not null default 0 check (quantity >= 0),
+  unit text not null default 'adet',
+  unit_cost numeric(10,2) check (unit_cost is null or unit_cost >= 0),
+  purchase_date date not null default current_date,
+  expiry_date date,
+  storage_location text,
+  usage_type text not null default 'sarf' check (usage_type in ('ikram', 'sarf', 'mutfak', 'paketleme')),
+  note text,
+  is_active boolean not null default true,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table public.order_items
+  add column if not exists consumable_item_id uuid,
+  add column if not exists is_complimentary boolean not null default false;
 
 create table if not exists public.integration_accounts (
   id uuid primary key default gen_random_uuid(),
@@ -195,6 +219,11 @@ create trigger update_expenses_updated_at
 before update on public.expenses
 for each row execute function public.update_updated_at_column();
 
+drop trigger if exists update_consumable_items_updated_at on public.consumable_items;
+create trigger update_consumable_items_updated_at
+before update on public.consumable_items
+for each row execute function public.update_updated_at_column();
+
 drop trigger if exists update_integration_accounts_updated_at on public.integration_accounts;
 create trigger update_integration_accounts_updated_at
 before update on public.integration_accounts
@@ -208,9 +237,17 @@ create index if not exists orders_restaurant_id_idx on public.orders(restaurant_
 create index if not exists orders_status_idx on public.orders(status);
 create index if not exists orders_created_at_idx on public.orders(created_at);
 create index if not exists order_items_order_id_idx on public.order_items(order_id);
+create index if not exists order_items_consumable_item_id_idx on public.order_items(consumable_item_id);
 create index if not exists tables_restaurant_id_idx on public.tables(restaurant_id);
 create index if not exists expenses_restaurant_id_idx on public.expenses(restaurant_id);
 create index if not exists expenses_expense_date_idx on public.expenses(expense_date);
+create index if not exists consumable_items_restaurant_id_idx on public.consumable_items(restaurant_id);
+create index if not exists consumable_items_expiry_date_idx on public.consumable_items(expiry_date);
+
+alter table public.order_items
+  drop constraint if exists order_items_consumable_item_id_fkey,
+  add constraint order_items_consumable_item_id_fkey
+  foreign key (consumable_item_id) references public.consumable_items(id) on delete set null;
 create index if not exists integration_accounts_restaurant_id_idx on public.integration_accounts(restaurant_id);
 create index if not exists integration_events_restaurant_id_idx on public.integration_events(restaurant_id);
 create index if not exists integration_events_received_at_idx on public.integration_events(received_at);
@@ -259,6 +296,7 @@ grant select, insert, update, delete on public.orders to authenticated;
 grant select, insert, update, delete on public.order_items to authenticated;
 grant select, insert, update, delete on public.tables to authenticated;
 grant select, insert, update, delete on public.expenses to authenticated;
+grant select, insert, update, delete on public.consumable_items to authenticated;
 grant select, insert, update, delete on public.integration_accounts to authenticated;
 grant select, insert, update, delete on public.integration_events to authenticated;
 grant select, insert on public.operator_audit_logs to authenticated;
@@ -271,6 +309,7 @@ alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
 alter table public.tables enable row level security;
 alter table public.expenses enable row level security;
+alter table public.consumable_items enable row level security;
 alter table public.integration_accounts enable row level security;
 alter table public.integration_events enable row level security;
 alter table public.operator_audit_logs enable row level security;
@@ -510,6 +549,31 @@ on public.expenses for delete
 to authenticated
 using (restaurant_id = app_private.current_profile_restaurant_id());
 
+drop policy if exists "Tenant select consumable items" on public.consumable_items;
+create policy "Tenant select consumable items"
+on public.consumable_items for select
+to authenticated
+using (restaurant_id = app_private.current_profile_restaurant_id());
+
+drop policy if exists "Tenant insert consumable items" on public.consumable_items;
+create policy "Tenant insert consumable items"
+on public.consumable_items for insert
+to authenticated
+with check (restaurant_id = app_private.current_profile_restaurant_id());
+
+drop policy if exists "Tenant update consumable items" on public.consumable_items;
+create policy "Tenant update consumable items"
+on public.consumable_items for update
+to authenticated
+using (restaurant_id = app_private.current_profile_restaurant_id())
+with check (restaurant_id = app_private.current_profile_restaurant_id());
+
+drop policy if exists "Tenant delete consumable items" on public.consumable_items;
+create policy "Tenant delete consumable items"
+on public.consumable_items for delete
+to authenticated
+using (restaurant_id = app_private.current_profile_restaurant_id());
+
 drop policy if exists "Operators can manage integration accounts" on public.integration_accounts;
 create policy "Operators can manage integration accounts"
 on public.integration_accounts for all
@@ -625,4 +689,49 @@ where not exists (
   where existing_expense.restaurant_id = demo_restaurant.id
     and existing_expense.title = expense_seed.title
     and existing_expense.expense_date = current_date
+);
+
+with demo_restaurant as (
+  select id
+  from public.restaurants
+  where slug = 'lezzet-bufe'
+  limit 1
+)
+insert into public.consumable_items (
+  restaurant_id,
+  name,
+  category,
+  quantity,
+  unit,
+  unit_cost,
+  purchase_date,
+  expiry_date,
+  storage_location,
+  usage_type,
+  note
+)
+select
+  demo_restaurant.id,
+  consumable_seed.name,
+  consumable_seed.category,
+  consumable_seed.quantity,
+  consumable_seed.unit,
+  consumable_seed.unit_cost,
+  current_date - consumable_seed.purchase_days_ago,
+  current_date + consumable_seed.expiry_days_left,
+  consumable_seed.storage_location,
+  consumable_seed.usage_type,
+  consumable_seed.note
+from demo_restaurant
+join (values
+  ('İkram çayı', 'İkram', 4.00, 'kg', 185.00, 8, 120, 'Kuru depo', 'ikram', null),
+  ('Acı sos paket', 'Sarf', 180.00, 'adet', 1.20, 18, 5, 'Paket servis rafı', 'sarf', 'SKT yaklaşınca önce bu parti kullanılmalı.'),
+  ('Yoğurt', 'Mutfak', 6.00, 'kg', 42.00, 3, -1, 'Soğuk dolap', 'mutfak', 'Kontrol edilmeden servise çıkarılmamalı.')
+) as consumable_seed(name, category, quantity, unit, unit_cost, purchase_days_ago, expiry_days_left, storage_location, usage_type, note) on true
+where not exists (
+  select 1
+  from public.consumable_items existing_item
+  where existing_item.restaurant_id = demo_restaurant.id
+    and existing_item.name = consumable_seed.name
+    and existing_item.purchase_date = current_date - consumable_seed.purchase_days_ago
 );

@@ -72,11 +72,13 @@ export const useOrderStore = create<OrderState>((set, get) => ({
           note: order.note ?? null,
         },
         order.items.map((item) => ({
-          product_id: item.productId || null,
+          product_id: item.isComplimentary ? null : item.productId || null,
+          consumable_item_id: item.consumableItemId ?? null,
           product_name: item.productName,
           quantity: item.quantity,
           unit_price: item.unitPrice,
           total_price: item.totalPrice,
+          is_complimentary: Boolean(item.isComplimentary),
         })),
       );
       await get().loadOrdersForRestaurant(state.activeRestaurantId);

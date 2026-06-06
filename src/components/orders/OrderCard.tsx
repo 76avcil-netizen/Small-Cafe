@@ -55,8 +55,13 @@ export function OrderCard({ order, onStatusChange, onPaymentChange, onCancel }: 
       <div className="mt-4 space-y-2 rounded-2xl bg-app p-4">
         {safeItems.length > 0 ? safeItems.map((item) => (
           <div key={`${order.id}-${item.productId}`} className="flex justify-between gap-3 text-sm">
-            <span className="min-w-0 break-words text-stone-200">{item.quantity ?? 0} x {item.productName || 'Ürün'}</span>
-            <span className="shrink-0 text-muted">{formatCurrency(item.totalPrice ?? (item.unitPrice ?? 0) * (item.quantity ?? 0), currency)}</span>
+            <span className="min-w-0 break-words text-stone-200">
+              {item.quantity ?? 0} x {item.productName || 'Ürün'}
+              {item.isComplimentary ? <span className="ml-2 text-xs font-semibold text-orange-200">İkram</span> : null}
+            </span>
+            <span className="shrink-0 text-muted">
+              {item.isComplimentary ? 'Ücretsiz' : formatCurrency(item.totalPrice ?? (item.unitPrice ?? 0) * (item.quantity ?? 0), currency)}
+            </span>
           </div>
         )) : <p className="text-sm text-muted">Ürün bilgisi yok.</p>}
       </div>

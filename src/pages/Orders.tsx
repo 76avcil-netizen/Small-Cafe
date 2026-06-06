@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { NewOrderModal } from '../components/orders/NewOrderModal';
 import { OrderCard } from '../components/orders/OrderCard';
 import { Button } from '../components/ui/Button';
+import { useConsumableStore } from '../store/consumableStore';
 import { useOrderStore } from '../store/orderStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { formatCurrency } from '../utils/formatCurrency';
@@ -18,6 +19,7 @@ export function Orders() {
   const updateOrderStatus = useOrderStore((state) => state.updateOrderStatus);
   const updateOrderPayment = useOrderStore((state) => state.updateOrderPayment);
   const cancelOrder = useOrderStore((state) => state.cancelOrder);
+  const decrementConsumableQuantity = useConsumableStore((state) => state.decrementConsumableQuantity);
   const currency = useSettingsStore((state) => state.settings.currency);
   const [activeFilter, setActiveFilter] = useState<OrderStatus | 'all'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -64,9 +66,18 @@ export function Orders() {
         paymentMethod?: PaymentMethod | null;
       },
     ) => {
-      void addOrder(order);
+      void addOrder(order)
+        .then(async () => {
+          const complimentaryItems = order.items.filter((item) => item.isComplimentary && item.consumableItemId);
+          await Promise.all(
+            complimentaryItems.map((item) => decrementConsumableQuantity(item.consumableItemId!, item.quantity)),
+          );
+        })
+        .catch((error) => {
+          console.error('Sipariş veya ikram stok düşümü tamamlanamadı.', error);
+        });
     },
-    [addOrder],
+    [addOrder, decrementConsumableQuantity],
   );
 
   return (
