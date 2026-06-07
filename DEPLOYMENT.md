@@ -49,7 +49,9 @@ Configure SPA fallback so routes like `/orders` and `/accounting` serve `index.h
 1. Build the app.
 2. Copy `dist/` to the server, for example `/var/www/restoyonet`.
 3. Use `deploy/nginx-restoyonet.conf` as a starting point.
-4. Reload Nginx after testing the config:
+4. Replace `your-domain.example` with the production domain.
+5. Put TLS in front of the app before production traffic. If Nginx terminates HTTPS directly, add the certificate paths and enable HSTS only after HTTPS is confirmed to work.
+6. Reload Nginx after testing the config:
 
 ```bash
 sudo nginx -t
@@ -65,4 +67,5 @@ After deployment:
 3. Check Menu, Orders, Accounting, and Operator routes for expected data.
 4. Create a test order and move it through status changes.
 5. Confirm no browser console errors appear.
-
+6. Confirm `/index.html` returns `Cache-Control: no-cache` and built JS/CSS assets return long-lived immutable cache headers.
+7. Confirm the response includes `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and `Permissions-Policy`.
